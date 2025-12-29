@@ -1,0 +1,10 @@
+{
+  "intervals_icu": {
+    "athlete_id": "i441523",
+    "api_key": "3ga82j2l5aglcpo09m9oy3ntg"
+  },
+  "google_sheets": {
+    "sheet_id": "1UahP8l5RvetP3a-gHagBJDetZHJy6rak",
+    "credentials_file": "credentials.json"
+  }
+}
