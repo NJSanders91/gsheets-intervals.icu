@@ -1,6 +1,8 @@
 # Sensitive configuration files
 config.json
 credentials.json
+oauth_credentials.json
+token.pickle
 
 # Python
 __pycache__/

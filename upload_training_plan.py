@@ -1,7 +1,6 @@
-#!/usr/bin/env python3
+ #!/usr/bin/env python3
 """
-Training Plan Upload Script
-Uploads training plan from Google Sheets to intervals.icu
+Script to upload training plan from Google Sheets to intervals.icu
 """
 
 import json
@@ -10,10 +9,12 @@ import csv
 import base64
 import requests
 from datetime import datetime, timedelta
-from pathlib import Path
 
-from google.oauth2 import service_account
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
+import os
+import pickle
 
 
 def load_config(path="config.json"):
@@ -21,14 +22,59 @@ def load_config(path="config.json"):
         return json.load(f)
 
 
-def get_sheets_service(credentials_file):
+def get_sheets_service(credentials_file, token_file="token.pickle"):
+    """
+    Get Google Sheets service using OAuth2 authentication.
+    """
     scopes = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
-    creds = service_account.Credentials.from_service_account_file(credentials_file, scopes=scopes)
+    creds = None
+    
+    # Check if we have a saved token
+    if os.path.exists(token_file):
+        with open(token_file, 'rb') as token:
+            creds = pickle.load(token)
+    
+    # If there are no valid credentials, do OAuth flow
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            if not os.path.exists(credentials_file):
+                raise Exception(
+                    f"OAuth credentials file '{credentials_file}' not found.\n"
+
+                )
+            flow = InstalledAppFlow.from_client_secrets_file(credentials_file, scopes)
+            creds = flow.run_local_server(port=0)
+        
+    # Save credentials for next time
+        with open(token_file, 'wb') as token:
+            pickle.dump(creds, token)
+    
     return build("sheets", "v4", credentials=creds)
 
 
-def fetch_sheet(service, sheet_id):
-    return service.spreadsheets().values().get(spreadsheetId=sheet_id, range="Sheet1").execute().get("values", [])
+def fetch_sheet(service, sheet_id, sheet_name=None):
+    """
+    Fetch data from a specific sheet tab.
+    """
+    # If sheet_name is specified, use it directly
+    if sheet_name:
+        try:
+            return service.spreadsheets().values().get(spreadsheetId=sheet_id, range=sheet_name).execute().get("values", [])
+        except Exception as e:
+            raise Exception(f"Could not access sheet tab '{sheet_name}'. Error: {e}")
+    
+    # Get the first sheet from the spreadsheet
+    spreadsheet = service.spreadsheets().get(spreadsheetId=sheet_id).execute()
+    sheets = spreadsheet.get('sheets', [])
+    if not sheets:
+        raise Exception("No sheets found in the spreadsheet")
+    
+    # Use the first sheet
+    sheet_name = sheets[0]['properties']['title']
+    print(f"Using first sheet: {sheet_name}")
+    return service.spreadsheets().values().get(spreadsheetId=sheet_id, range=sheet_name).execute().get("values", [])
 
 
 def format_workout_steps(activity):
@@ -36,14 +82,14 @@ def format_workout_steps(activity):
     steps = []
     activity_lower = activity.lower()
     
-    # Recovery run: "Recovery 30 mins"
+    # Recovery run
     if "recovery" in activity_lower:
         match = re.search(r"(\d+)\s*mins?", activity)
         if match:
             steps.append(f"- {match.group(1)}m Z1 HR")
         return "\n".join(steps)
     
-    # Easy run: "Easy 50 mins + 4x10 secs strides"
+    # Easy run
     if "easy" in activity_lower:
         match = re.search(r"(\d+)\s*mins?", activity)
         if match:
@@ -56,20 +102,36 @@ def format_workout_steps(activity):
             steps.append("- 50s Z1 HR Recovery")
         return "\n".join(steps)
     
-    # Long run with intervals: "80 mins inc. 8x5 mins Z3 HR"
-    if "mins inc." in activity_lower:
-        total = re.search(r"^(\d+)\s*mins?", activity)
-        intervals = re.search(r"(\d+)x(\d+)\s*mins?\s*Z(\d)", activity, re.IGNORECASE)
-        if total and intervals:
+    # Long run: "Long 80 mins" or "Long 80 mins + 8x5 mins Z3"
+    if "long" in activity_lower:
+        # Get base duration
+        match = re.search(r"(\d+)\s*mins?", activity)
+        if match:
+            steps.append(f"- {match.group(1)}m Z2 HR")
+        
+        # Check for intervals added with "+"
+        intervals = re.search(r"\+?\s*(\d+)x(\d+)\s*mins?\s*Z(\d)", activity, re.IGNORECASE)
+        if intervals:
             reps, dur, zone = intervals.groups()
-            steps.append("- 10m Z2 HR Warmup")
-            steps.append(f"\nMain set {reps}x")
+            steps.append(f"\nIntervals {reps}x")
             steps.append(f"- {dur}m Z{zone} HR")
             steps.append("- 2m Z2 HR Recovery")
-            steps.append("\n- 10m Z2 HR Cooldown")
+        
+        # Also support old "inc." format for backwards compatibility
+        if "inc." in activity_lower and not intervals:
+            total = re.search(r"^(\d+)\s*mins?", activity)
+            intervals_inc = re.search(r"(\d+)x(\d+)\s*mins?\s*Z(\d)", activity, re.IGNORECASE)
+            if total and intervals_inc:
+                reps, dur, zone = intervals_inc.groups()
+                steps.append("- 10m Z2 HR Warmup")
+                steps.append(f"\nMain set {reps}x")
+                steps.append(f"- {dur}m Z{zone} HR")
+                steps.append("- 2m Z2 HR Recovery")
+                steps.append("\n- 10m Z2 HR Cooldown")
+        
         return "\n".join(steps)
     
-    # Interval workout: "5x3:00 (60s) + 8x1:15 (30s) Z4 HR" or "10x3:00 (60s) Z3 HR-Z4"
+    # Interval workout
     interval_pattern = r"(\d+)x([\d:]+)\s*\((\d+)s?\)"
     matches = re.findall(interval_pattern, activity, re.IGNORECASE)
     
@@ -81,7 +143,7 @@ def format_workout_steps(activity):
         steps.append("- 10m Z2 HR Warmup")
         
         for reps, dur, rest in matches:
-            # Convert duration
+    # Convert duration
             if ":" in dur:
                 parts = dur.split(":")
                 mins = int(parts[0])
@@ -100,7 +162,7 @@ def format_workout_steps(activity):
         steps.append("\n- 10m Z2 HR Cooldown")
         return "\n".join(steps)
     
-    # Progression run: "15km progression run"
+    # Progression run"
     if "progression" in activity_lower:
         match = re.search(r"(\d+)\s*km", activity)
         if match:
@@ -262,8 +324,10 @@ def main():
         with open(args.csv, encoding="utf-8") as f:
             rows = list(csv.reader(f))
     else:
-        service = get_sheets_service(config["google_sheets"]["credentials_file"])
-        rows = fetch_sheet(service, config["google_sheets"]["sheet_id"])
+        credentials_file = config["google_sheets"]["credentials_file"]
+        service = get_sheets_service(credentials_file)
+        sheet_name = config["google_sheets"].get("sheet_name")  # Optional: specific tab name
+        rows = fetch_sheet(service, config["google_sheets"]["sheet_id"], sheet_name=sheet_name)
     
     # Parse
     events = parse_training_plan(rows)

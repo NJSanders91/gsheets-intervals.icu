@@ -1,43 +1,16 @@
-# Training Plan Upload Script
+Training Plan Upload Script
 
 Upload your training plan from Google Sheets to [intervals.icu](https://intervals.icu).
 
-## Features
+Setup
 
-- Reads training plan directly from Google Sheets
-- Parses various workout formats:
-  - Recovery runs with strength training
-  - Easy runs with strides
-  - Interval workouts (time and distance-based)
-  - Hill repeats
-  - Long runs with intervals
-  - Progression runs
-  - Marathon effort workouts
-  - Races
-- Uses RPE zones as primary intensity metric
-- Splits combined workouts (e.g., "Recovery + Strength") into separate events
-- Supports dry-run mode to preview before uploading
-
-## Zone System
-
-| Zone | Intensity | RPE | Description |
-|------|-----------|-----|-------------|
-| Z1 | Recovery | 1 | Very easy, recovery pace |
-| Z2 | Easy | 3 | Conversational pace |
-| Z3 | Threshold | 6 | Marathon/tempo effort |
-| Z4 | VO2max | 8 | 10k effort |
-| Z5 | VO2max+ | 9 | 5k-mile effort |
-| Z6 | Sprint | 10 | All-out sprint |
-
-## Setup
-
-### 1. Install Dependencies
+1. Install Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. Google Sheets API Setup
+2. Google Sheets OAuth Setup
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Create a new project (or select existing)
@@ -45,96 +18,105 @@ pip install -r requirements.txt
    - Go to "APIs & Services" → "Library"
    - Search for "Google Sheets API"
    - Click "Enable"
-4. Create a Service Account:
+4. Configure OAuth Consent Screen:
+   - Go to "APIs & Services" → "OAuth consent screen"
+   - Choose "External" (unless you have a Google Workspace)
+   - Fill in required fields (App name, User support email, etc.)
+   - Click "Save and Continue"
+   - On Scopes page: Click "Save and Continue" (default scopes are fine)
+   - On Test users page: **Click "+ ADD USERS" and add your Google account email**
+   - Click "Save and Continue"
+   - Make sure "Publishing status" shows "Testing" (not "In production")
+5. Create OAuth 2.0 Credentials:
    - Go to "APIs & Services" → "Credentials"
-   - Click "Create Credentials" → "Service Account"
-   - Name it (e.g., "training-plan-uploader")
-   - Click "Done"
-5. Create a key for the service account:
-   - Click on the service account you just created
-   - Go to "Keys" tab
-   - Click "Add Key" → "Create new key"
-   - Select "JSON" and click "Create"
-   - Save the downloaded file as `credentials.json` in this directory
-6. Share your Google Sheet:
-   - Open your training plan Google Sheet
-   - Click "Share"
-   - Add the service account email (found in `credentials.json` as `client_email`)
-   - Give it "Viewer" access
+   - Click "Create Credentials" → "OAuth client ID"
+   - Application type: **"Desktop app"**
+   - Name: "Training Plan Uploader" (or any name)
+   - Click "Create"
+   - Download the JSON file
+   - Save it as `oauth_credentials.json` in this directory
 
-### 3. intervals.icu API Setup
+3. intervals.icu API Setup
 
 1. Log in to [intervals.icu](https://intervals.icu)
 2. Go to Settings → Developer
 3. Create an API key (or use existing)
 4. Find your Athlete ID in Settings → Account (format: `i12345`)
 
-### 4. Configure the Script
+4. Configure the Script
 
-1. Copy the example config:
+ 1. Copy the example config:
    ```bash
    cp config.example.json config.json
    ```
 
-2. Edit `config.json` with your credentials:
+ 2. Edit `config.json` with your credentials:
    ```json
    {
      "intervals_icu": {
-       "athlete_id": "i12345",
+       "athlete_id": "ExampleID:i12345",
        "api_key": "your-api-key-here"
      },
      "google_sheets": {
-       "sheet_id": "1UahP8l5RvetP3a-gHagBJDetZHJy6rak",
-       "credentials_file": "credentials.json"
+       "sheet_id": "ExampleID:1UahP8l5RvetP3a-gHagBJDetZHJy6rak",
+       "sheet_name": "Example_sheetID:Training Plan",
+       "credentials_file": "oauth_credentials.json"
      }
    }
    ```
-
    - `athlete_id`: Your intervals.icu athlete ID
    - `api_key`: Your intervals.icu API key
    - `sheet_id`: The ID from your Google Sheet URL (the long string between `/d/` and `/edit`)
-   - `credentials_file`: Path to your Google service account credentials
+   - `sheet_name`: Optional - name of the specific sheet tab to use (defaults to first sheet)
+   - `credentials_file`: Path to your OAuth credentials file (`oauth_credentials.json`)
 
-## Usage
 
-### Preview workouts (dry run)
+The script is ready to use. It supports:
 
-```bash
-python upload_training_plan.py --dry-run
-```
+- Uploading by week (--week)
+- Preview mode (--dry-run)
+- CSV file option (--csv)
+- OAuth2 authentication
 
-### Upload to intervals.icu
+Uploading to Intervals
 
-```bash
-python upload_training_plan.py
-```
-
-### Use a local CSV file
-
-If you prefer to export your sheet as CSV:
+Testing the upload
 
 ```bash
-python upload_training_plan.py --csv "path/to/your/file.csv" --dry-run
+python3 upload_training_plan.py --week 3 --dry-run
 ```
+
+Upload to intervals.icu
+
+```bash
+python3 upload_training_plan.py
+```
+Use a local CSV file
+
+If you prefer to export your sheet as CSV or API is not working you can add a csv file manually to upload
+
+```bash
+python3 upload_training_plan.py --csv "path/to/your/file.csv" --week 3 --dry-run
+```
+
+**Note:** On first run, a browser window will open for OAuth authentication. After that, your credentials are saved and you won't need to authenticate again.
 
 ## Sheet Structure
 
 The script expects your Google Sheet to have this structure:
 
 ```
-Row: Week header (e.g., "Week 1\n22 Dec - 28 Dec")
+Row: Week header and date range (e.g., "Week 1\n22 Dec - 28 Dec")
 Row: Activity    | Monday workout | Tuesday workout | ... | Sunday workout
 Row: Purpose     | Recovery       | Mechanics       | ... | Specific Endurance
-Row: Your Notes  | ...            | ...             | ... | ...
-Row: Lee' Notes  | ...            | ...             | ... | ...
 Row: Session Notes | ...          | ...             | ... | ...
 ```
 
-### Supported Workout Formats
+### Example Workout Formats
 
 | Format | Example |
 |--------|---------|
-| Recovery + Strength | `Recovery 30 mins and Leg Strength` |
+| Recovery | `Recovery 30 mins and Leg Strength` |
 | Easy + Strides | `Easy 50 mins + 4x10 secs strides` |
 | Intervals | `5x3:00 (60s) + 8x1:15 (30s) Z4` |
 | Zone Progression | `10x3:00 (60s) Z3-Z4` |
@@ -150,8 +132,13 @@ Row: Session Notes | ...          | ...             | ... | ...
 ### "Config file not found"
 Make sure you've copied `config.example.json` to `config.json` and filled in your credentials.
 
-### "Google credentials file not found"
-Download the service account key from Google Cloud Console and save it as `credentials.json`.
+### "OAuth credentials file not found"
+Make sure `oauth_credentials.json` exists in this directory. Download it from Google Cloud Console → Credentials → OAuth client ID.
+
+### "Access blocked: Training plan has not completed the Google verification process"
+- Go to "APIs & Services" → "OAuth consent screen"
+- Make sure you're added as a test user
+- Make sure the app is in "Testing" mode, not "In production"
 
 ### "Failed to upload events"
 - Check that your API key is correct
@@ -164,6 +151,4 @@ Download the service account key from Google Cloud Console and save it as `crede
 - Verify the "Activity" row label is spelled correctly
 
 ## License
-
-MIT
 

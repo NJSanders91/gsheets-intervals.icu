@@ -1,10 +1,11 @@
 {
   "intervals_icu": {
-    "athlete_id": "i441523",
-    "api_key": "3ga82j2l5aglcpo09m9oy3ntg"
+    "athlete_id": "Your Athlete ID",
+    "api_key": "API Key"
   },
   "google_sheets": {
-    "sheet_id": "1UahP8l5RvetP3a-gHagBJDetZHJy6rak",
-    "credentials_file": "credentials.json"
+    "sheet_id": "Google sheets ID",
+    "sheet_name": "Training Plan",
+    "credentials_file": "oauth_credentials.json"
   }
 }
