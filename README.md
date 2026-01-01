@@ -1,13 +1,13 @@
-Training Plan Upload Script
+Training Plan Upload
 
-Upload your training plan from Google Sheets to [intervals.icu](https://intervals.icu).
+Upload your training plan from Google Sheets to [intervals.icu](https://intervals.icu) so it can be synced adn uploaded to your Garmin device. 
 
-Setup
+**Pre Requisites Setup**
 
 1. Install Dependencies
 
 ```bash
-pip install -r requirements.txt
+pip install -r Configs/requirements.txt
 ```
 
 2. Google Sheets OAuth Setup
@@ -34,7 +34,7 @@ pip install -r requirements.txt
    - Name: "Training Plan Uploader" (or any name)
    - Click "Create"
    - Download the JSON file
-   - Save it as `oauth_credentials.json` in this directory
+   - Save it as `Configs/oauth_credentials.json` in the project directory
 
 3. intervals.icu API Setup
 
@@ -45,22 +45,22 @@ pip install -r requirements.txt
 
 4. Configure the Script
 
- 1. Copy the example config:
+1. Copy the example config:
    ```bash
-   cp config.example.json config.json
+   cp Configs/config_example.json Configs/config.json
    ```
 
- 2. Edit `config.json` with your credentials:
+2. Edit `Configs/config.json` with your credentials:
    ```json
    {
      "intervals_icu": {
-       "athlete_id": "ExampleID:i12345",
+       "athlete_id": "ExampleIDi12345",
        "api_key": "your-api-key-here"
      },
      "google_sheets": {
        "sheet_id": "ExampleID:1UahP8l5RvetP3a-gHagBJDetZHJy6rak",
        "sheet_name": "Example_sheetID:Training Plan",
-       "credentials_file": "oauth_credentials.json"
+       "credentials_file": "Configs/oauth_credentials.json"
      }
    }
    ```
@@ -68,72 +68,127 @@ pip install -r requirements.txt
    - `api_key`: Your intervals.icu API key
    - `sheet_id`: The ID from your Google Sheet URL (the long string between `/d/` and `/edit`)
    - `sheet_name`: Optional - name of the specific sheet tab to use (defaults to first sheet)
-   - `credentials_file`: Path to your OAuth credentials file (`oauth_credentials.json`)
+   - `credentials_file`: Path to your OAuth credentials file (relative to project root: `Configs/oauth_credentials.json`)
 
+**Running the tool - Simple plan**
 
-The script is ready to use. It supports:
+GSheets
+https://docs.google.com/spreadsheets/d/1cMErpnjcfHi9aQ3Vk1bJ4qO_3Y3kbLWIY9-pppNEjwA/edit?gid=1300751842#gid=1300751842
+.csv file Example_simple_plan.csv
 
-- Uploading by week (--week)
-- Preview mode (--dry-run)
-- CSV file option (--csv)
-- OAuth2 authentication
+**Note:** 
+On first run, a browser window will open for OAuth authentication. After that, your credentials are saved and you won't need to authenticate again.
 
-Uploading to Intervals
-
-Testing the upload
-
+Preview
 ```bash
-python3 upload_training_plan.py --week 3 --dry-run
+python3 Scripts/upload_simple_plan.py --week 1 --dry-run
 ```
 
-Upload to intervals.icu
-
+Upload specific week:
 ```bash
-python3 upload_training_plan.py
-```
-Use a local CSV file
-
-If you prefer to export your sheet as CSV or API is not working you can add a csv file manually to upload
-
-```bash
-python3 upload_training_plan.py --csv "path/to/your/file.csv" --week 3 --dry-run
+python3 Scripts/upload_simple_plan.py --week 1
 ```
 
-**Note:** On first run, a browser window will open for OAuth authentication. After that, your credentials are saved and you won't need to authenticate again.
+Upload all
+```bash
+python3 Scripts/upload_simple_plan.py
+```
 
-## Sheet Structure
+Use a local CSV file instead of Google Sheets
+```bash
+python3 Scripts/upload_simple_plan.py --csv "Example_simple_plan.csv" --week 1 --dry-run
+```
 
-The script expects your Google Sheet to have this structure:
+**Training Plans**
 
+NOTE: I am not a coach and the example training plan is a mix of sessions I enjoy and that work for me. This is not a verified plan and should be altered to each individuals needs. 
+
+Example plan: 
+Gsheets:(https://docs.google.com/spreadsheets/d/1fXZHBjF_H9UQw7LEisU3upLH70cf0ax0IHB7kOH_qhA/edit?gid=1300751842#gid=1300751842)
+
+CSV file: Example_simple_plan.csv for local upload direct from this repo
+
+**Simple Plan Format (Recommended)**
+
+The simple plan format uses a streamlined structure with "Session Type: Description" format.
+
+**Plan Structure Requirements**
+
+The plan structure **must** be followed exactly for the parser to work correctly:
+
+1. **Do not edit Row or Column structure** - The parser expects activities in specific columns (C-I for Monday-Sunday)
+2. **Dates must be in format** `"Jan 5 - Jan 11"` or `"(Jan 5 - Jan 11)"` - Required for the parser to extract week start dates
+3. **Supported workout type must be stated in activity** - Use workout types like: Easy, Intervals, Hill Intervals, Tempo, Threshold, Sprints, Long Run, Recovery
+4. **Supported signs**: Use `&` or `+` for additional blocks, `x` for multiple intervals (e.g., `5x3min` means 5 repetitions of 3 minutes)
+
+**Supported Workout Type examples:**
+
+- Recovery runs - `Recovery: 30min Zone 1`
+- Easy runs - `Easy: 60min Zone 2`
+- Easy runs with strides - `Easy: 60min Zone 2 & Strides 5x10sec + 50sec rest`
+- Interval sessions - `Intervals: 5x3min in Zone 3 + 60 sec rest`
+- Multiple interval blocks - `Intervals: 5x3min in Zone 3 + 60sec rest\n5x3min in Zone 4 + 60sec rest`
+- Hill intervals - `Hill Intervals: 20x1min in Zone 4 + 2min rest`
+- Tempo runs - `Tempo: 20min Zone 3` (or `Tempo: 20min` - defaults to Z3)
+- Threshold runs - `Threshold: 15min Zone 4` (or `Threshold: 15min` - defaults to Z4)
+- Sprints - `Sprints: 10x30sec + 60sec rest` (defaults to Z5)
+- Long runs - `Long Run: 60min Zone 2`
+- Long runs with segments - `Long run: 20min zone 2 +\n10min zone 3 +\n20min zone 2`
+- Distance-based runs - `Easy: 10km Zone 2`
+
+
+**Extensive Plan Format (Advanced)**
+
+This allows more flexibility and different workout plan formats. You will still need separate Activity, Purpose, and Session Notes rows. 
+
+
+The extensive format is designed for more miles/detailed workouts or multiple workouts per day. Activity is the type (run/weights), purpose is the goal of the workout session notes has the breakdown. 
+
+#### When to Use Extensive Format
+
+Use the extensive format if you need:
+- **Separate Purpose tracking** - Track workout purpose separately from activity description
+- **Complex session notes** - Detailed session notes with zone progressions, multiple interval blocks, etc.
+- **Advanced workout parsing** - Support for complex formats like zone progressions, marathon effort intervals, etc.
+- **Combined workouts** - Support for multiple workouts in one day. For example run + strength workouts in one cell
+
+**Sheet Structure:**
 ```
 Row: Week header and date range (e.g., "Week 1\n22 Dec - 28 Dec")
-Row: Activity    | Monday workout | Tuesday workout | ... | Sunday workout
+Row: Activity    | Recovery Run & Strength workout | Interval Session | ... | Sunday Run
 Row: Purpose     | Recovery       | Mechanics       | ... | Specific Endurance
 Row: Session Notes | ...          | ...             | ... | ...
 ```
 
-### Example Workout Formats
+**Extra Features in Extensive Format**
 
-| Format | Example |
-|--------|---------|
-| Recovery | `Recovery 30 mins and Leg Strength` |
-| Easy + Strides | `Easy 50 mins + 4x10 secs strides` |
-| Intervals | `5x3:00 (60s) + 8x1:15 (30s) Z4` |
-| Zone Progression | `10x3:00 (60s) Z3-Z4` |
-| Distance Intervals | `10x1km (60s) Z3-Z4` |
-| Hill Repeats | `10x3:00 hills (steady jog back) Z3` |
-| Long Run | `80 mins inc. 8x5 mins Z3` |
-| Progression Run | `15km progression run` |
-| Marathon Effort | `3x5k at Marathon Effort (2:00)` |
-| Race | `HM Race` |
+The extensive format provides these additional features **not available in the simple plan**:
 
-## Troubleshooting
+**Unique Workout Formats:**
+- Long runs with intervals - `80 mins inc. 8x5 mins Z3` or `Long 80 mins + 8x5 mins Z3` (long run + interval parsing)
+- Auto-progression runs - `15km progression run` (automatically divides into 3 equal segments)
+- Race events - `HM Race` (sets category to "RACE" instead of "WORKOUT")
+- Combined workouts - `Recovery 30 mins and Leg Strength` (creates separate Run + Strength events)
+
+**Detailed Session Notes Features:**
+- Zone progressions -  "first X reps in Zone Y, final Z reps in Zone W" (e.g., "first 5 reps in Zone 3, final 5 reps in Zone 4")
+- Multiple interval blocks - Handles "+" separated intervals in session notes (e.g., "5x3 min + 8x1:15 min")
+- Keyword zone mapping - Converts words like "easy", "recovery", "tempo", "threshold" to zones in session notes
+
+**Format Differences:**
+- Allow for multiple session in one day using Activities row
+- Separate Purpose row - Track workout purpose separately from activity description
+- Session Notes row - Detailed breakdown of workouts in separate row
+- Multiple rows per day - Activity, Purpose, and Session Notes rows for each day
+
+
+**Troubleshooting**
 
 ### "Config file not found"
-Make sure you've copied `config.example.json` to `config.json` and filled in your credentials.
+Make sure you've copied `Configs/config_example.json` to `Configs/config.json` and filled in your credentials.
 
 ### "OAuth credentials file not found"
-Make sure `oauth_credentials.json` exists in this directory. Download it from Google Cloud Console → Credentials → OAuth client ID.
+Make sure `Configs/oauth_credentials.json` exists in the project directory. Download it from Google Cloud Console → Credentials → OAuth client ID.
 
 ### "Access blocked: Training plan has not completed the Google verification process"
 - Go to "APIs & Services" → "OAuth consent screen"
@@ -146,9 +201,10 @@ Make sure `oauth_credentials.json` exists in this directory. Download it from Go
 - Ensure your API key has write permissions
 
 ### "No workouts found"
-- Check that your sheet structure matches the expected format
-- Make sure the week headers include date ranges (e.g., "22 Dec - 28 Dec")
-- Verify the "Activity" row label is spelled correctly
+- Check that your sheet structure matches the expected format **exactly**
+- Make sure the week headers include date ranges (e.g., "Jan 5 - Jan 11" or "(Jan 5 - Jan 11)")
+- Verify activities row comes directly after week header row (no "Session" label needed for simple plan)
+- Ensure dates are in the correct format: "Jan 5 - Jan 11" (month abbreviation, day number)
+- Check that activities are in columns C-I (Monday-Sunday)
 
 ## License
-

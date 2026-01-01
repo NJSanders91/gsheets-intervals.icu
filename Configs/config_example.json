@@ -5,7 +5,6 @@
   },
   "google_sheets": {
     "sheet_id": "Google sheets ID",
-    "sheet_name": "Training Plan",
-    "credentials_file": "oauth_credentials.json"
+    "sheet_name": "Training Plan"
   }
 }
