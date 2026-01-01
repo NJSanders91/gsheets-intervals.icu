@@ -1,38 +1,12 @@
 #!/usr/bin/env python3
-"""
-Simplified training plan uploader for Google Sheets.
-Supports format: "Session Type: Description" (e.g., "Recovery: 30mins Zone 1")
-"""
+"""Simplified training plan uploader for Google Sheets."""
 
 import json
 import re
 import csv
 import os
 from datetime import datetime, timedelta
-from utils import load_config, get_sheets_service, fetch_sheet, upload_events, parse_duration, get_zone, get_recovery, format_strides
-
-
-def parse_week_start(text):
-    """Parse week start date text '(Jan 5 - Jan 11)' or 'jan 2 - jan 8'."""
-    text = text.replace('\n', ' ').replace('\r', ' ').strip()
-    # Try parentheses format first: "(Jan 5 - Jan 11)"
-    match = re.search(r"\(([^)]+)\)", text)
-    if match:
-        date_str = match.group(1).split("-")[0].strip()
-        try:
-            return datetime.strptime(f"{date_str} {datetime.now().year}", "%b %d %Y")
-        except:
-            pass
-    # Try format without parentheses: "jan 2 - jan 8"
-    match = re.search(r"([a-z]+)\s+(\d+)\s*-\s*", text, re.IGNORECASE)
-    if match:
-        month_str = match.group(1)
-        day_str = match.group(2)
-        try:
-            return datetime.strptime(f"{month_str} {day_str} {datetime.now().year}", "%b %d %Y")
-        except:
-            pass
-    return None
+from utils import load_config, get_sheets_service, fetch_sheet, upload_events, parse_duration, get_zone, get_recovery, format_strides, parse_week_start
 
 
 def parse_simple_activity(activity_text):
@@ -108,6 +82,7 @@ def format_simple_workout(activity_desc, purpose=""):
 
 def parse_simple_training_plan(rows):
     """Parse simplified training plan format."""
+    
     events = []
     week_start = None
     week_number = 0

@@ -8,7 +8,7 @@ import re
 import csv
 import os
 from datetime import datetime, timedelta
-from utils import load_config, get_sheets_service, fetch_sheet, upload_events, parse_duration, get_zone, get_recovery, format_strides, format_hills
+from utils import load_config, get_sheets_service, fetch_sheet, upload_events, parse_duration, get_zone, get_recovery, format_strides, format_hills, parse_week_start
 
 
 def format_workout_steps(activity):
@@ -93,39 +93,9 @@ def format_workout_steps(activity):
     return ""
 
 
-def parse_week_start(text):
-    """Parse 'Week 1\\n22 Dec - 28 Dec' to get Monday's date."""
-    match = re.search(r"(\d{1,2})\s+(\w+)\s*-", text)
-    if not match:
-        return None
-    
-    day, month = int(match.group(1)), match.group(2).lower()[:3]
-    months = {"jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
-              "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12}
-    
-    year = datetime.now().year
-    m = months.get(month, 1)
-    current_month = datetime.now().month
-    
-    # If the month is later in the year than current month, it's likely last year
-    # e.g., if current is Jan and date is Dec, use previous year
-    if m > current_month + 6:  # More than 6 months ahead means it's probably last year
-        year -= 1
-    # If the month is earlier and within first few months, it might be next year
-    elif m < current_month and m <= 3:
-        year += 1
-    
-    try:
-        return datetime(year, m, day)
-    except:
-        return None
-
-
 def parse_session_notes(session_note, is_interval=False):
-    """
-    Parse session notes and convert to structured workout steps format.
-    Converts words like 'easy' to zones and formats intervals.
-"""
+    """Parse session notes and convert to structured workout steps format."""
+    
     if not session_note:
         return None
     
@@ -150,8 +120,12 @@ def parse_session_notes(session_note, is_interval=False):
         "sprint": "Z5",
     }
     
-    # Split by common separators
-    parts = re.split(r'\s*/\s*', session_note)
+    # Split by common separators (newlines or /)
+    # First try newlines, then fall back to /
+    if '\n' in session_note:
+        parts = [p.strip() for p in session_note.split('\n') if p.strip()]
+    else:
+        parts = re.split(r'\s*/\s*', session_note)
     
     # Extract title if present (e.g., "Long Run:", "Interval Session:")
     title = None
@@ -200,7 +174,7 @@ def parse_session_notes(session_note, is_interval=False):
         
         if "cooldown" in part_lower or "cool down" in part_lower:
             if is_interval:
-                steps.append("- Cooldown 10m Z2 HR")
+                steps.append("\n- Cooldown 10m Z2 HR")
             else:
                 steps.append("- Cooldown")
             i += 1
@@ -276,14 +250,25 @@ def parse_session_notes(session_note, is_interval=False):
             i += 1
             continue
         
-        # Fallback: add as-is
-        steps.append(f"- {part}")
+        # Check for distance with zone: "5km in Zone 1" or "5km Zone 2" or "5 km Z3"
+        km_match = re.search(r"(\d+)\s*km", part_lower)
+        if km_match:
+            distance = km_match.group(1)
+            zone = get_zone(part, "", "Z2")
+            steps.append(f"- {distance}km {zone} HR")
+            i += 1
+            continue
+        
+        # Fallback: skip non-workout lines (titles, descriptions without numbers)
+        # Only add if it contains numbers (likely a workout step)
+        if part and not part.endswith(":") and re.search(r'\d', part):
+            steps.append(f"- {part}")
         i += 1
     
     # Add Cooldown - only intervals get "10m Z2 HR" detail
     if not has_cooldown:
         if is_interval:
-            steps.append("- Cooldown 10m Z2 HR")
+            steps.append("\n- Cooldown 10m Z2 HR")
         else:
             steps.append("- Cooldown")
     
@@ -291,10 +276,8 @@ def parse_session_notes(session_note, is_interval=False):
 
 
 def match_session_notes_to_workout(session_note, activity, purpose=""):
-    """
-    Match session notes to a workout based on keywords and purpose.
-    Returns the parsed and formatted session notes or None.
-    """
+    """Match session notes to a workout based on keywords and purpose."""
+    
     if not session_note:
         return None
     
@@ -349,6 +332,7 @@ def match_session_notes_to_workout(session_note, activity, purpose=""):
 
 def parse_training_plan(rows):
     """Parse sheet rows into events."""
+    
     events = []
     week_start = None
     week_number = None
@@ -363,6 +347,7 @@ def parse_training_plan(rows):
         # Week header
         if "week" in label and re.search(r"\d+\s+\w+\s*-", row[1]):
             week_start = parse_week_start(row[1])
+            session_notes = []  # Reset session notes for new week
             # Extract week number from header (e.g., "Week 1", "Week 2")
             week_match = re.search(r"week\s+(\d+)", row[1], re.IGNORECASE)
             if week_match:
@@ -378,10 +363,18 @@ def parse_training_plan(rows):
         if label == "activity" and week_start:
             activities = row[2:9]
             
-            # Get purposes from next row
+            # Look ahead for purposes and session notes (they come after activity row)
             purposes = []
-            if i + 1 < len(rows) and len(rows[i + 1]) > 1 and rows[i + 1][1].strip().lower() == "purpose":
-                purposes = rows[i + 1][2:9]
+            local_session_notes = []
+            for j in range(i + 1, min(i + 5, len(rows))):  # Look up to 4 rows ahead
+                if len(rows[j]) > 1:
+                    next_label = rows[j][1].strip().lower()
+                    if next_label == "purpose":
+                        purposes = rows[j][2:9]
+                    elif next_label == "session notes":
+                        local_session_notes = rows[j][2:9]
+                    elif "week" in next_label:  # Stop if we hit next week
+                        break
             
             days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
             
@@ -392,8 +385,10 @@ def parse_training_plan(rows):
                 date = week_start + timedelta(days=day_idx)
                 purpose = purposes[day_idx] if day_idx < len(purposes) else ""
                 
-                # Get session note for this day
-                session_note = session_notes[day_idx] if day_idx < len(session_notes) else ""
+                # Get session note for this day (prefer local, fall back to stored)
+                session_note = local_session_notes[day_idx] if day_idx < len(local_session_notes) else ""
+                if not session_note:
+                    session_note = session_notes[day_idx] if day_idx < len(session_notes) else ""
                 matched_note = match_session_notes_to_workout(session_note, activity, purpose)
                 
                 # Check for combined workout (run + strength)

@@ -8,6 +8,8 @@ import base64
 import requests
 import os
 import pickle
+import re
+from datetime import datetime
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
@@ -24,9 +26,8 @@ def load_config(path=None):
 
 
 def get_sheets_service(token_file=None):
-    """
-    Get Google Sheets service using saved token.
-    """
+    """Get Google Sheets service using saved token."""
+    
     script_dir = os.path.dirname(os.path.abspath(__file__))
     
     # Default token file to Configs folder
@@ -50,10 +51,8 @@ def get_sheets_service(token_file=None):
 
 
 def fetch_sheet(service, sheet_id, sheet_name=None):
-    """
-    Fetch data from a specific sheet tab.
-    """
-    # If sheet_name is specified, use it directly
+    """Fetch data from a specific sheet tab."""
+    
     if sheet_name:
         try:
             return service.spreadsheets().values().get(
@@ -78,6 +77,7 @@ def fetch_sheet(service, sheet_id, sheet_name=None):
 
 def upload_events(events, athlete_id, api_key):
     """Upload events to intervals.icu."""
+    
     auth = base64.b64encode(f"API_KEY:{api_key}".encode()).decode()
     url = f"https://intervals.icu/api/v1/athlete/{athlete_id}/events/bulk"
     headers = {"Authorization": f"Basic {auth}", "Content-Type": "application/json"}
@@ -85,15 +85,51 @@ def upload_events(events, athlete_id, api_key):
     response = requests.post(url, headers=headers, json=events)
     return response.status_code == 200, response.text
 
-# Workout parsing helpers
-import re
 
+def parse_week_start(text):
+    """Parse week start date from text format"""
+
+    text = text.replace('\n', ' ').replace('\r', ' ').strip()
+    
+    months = {"jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
+              "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12}
+    
+    year = datetime.now().year
+    current_month = datetime.now().month
+    day, month_num = None, None
+    
+    # Try "22 Dec - 28 Dec" format (day first)
+    match = re.search(r"(\d{1,2})\s+([a-z]+)\s*-", text, re.IGNORECASE)
+    if match:
+        day = int(match.group(1))
+        month_num = months.get(match.group(2).lower()[:3], 1)
+    else:
+        # Try "jan 2 - jan 8" format (month first)
+        match = re.search(r"([a-z]+)\s+(\d+)\s*-", text, re.IGNORECASE)
+        if match:
+            month_num = months.get(match.group(1).lower()[:3], 1)
+            day = int(match.group(2))
+    
+    if not day or not month_num:
+        return None
+    
+    # Handle year rollover (Dec/Jan boundary)
+    if month_num > current_month + 6:
+        year -= 1
+    elif month_num < current_month and month_num <= 3:
+        year += 1
+    
+    try:
+        return datetime(year, month_num, day)
+    except:
+        return None
+
+
+# Workout parsing helpers
 
 def parse_duration(duration_raw):
-    """
-    Parse duration string (e.g., "3:00" -> "3m", "1:15" -> "1m15s", "5" -> "5m").
-    Handles time format with colons and plain numbers.
-    """
+    """Parse duration string (e.g., "3:00" -> "3m", "1:15" -> "1m15s", "5" -> "5m")."""
+    
     if ":" in duration_raw:
         parts = duration_raw.split(":")
         mins, secs = int(parts[0]), int(parts[1]) if len(parts) > 1 else 0
@@ -105,9 +141,8 @@ def parse_duration(duration_raw):
 
 
 def get_zone(text, purpose="", default="Z2"):
-    """
-    Extract zone from text.
-    """
+    """Extract zone from text."""
+    
     text_lower = text.lower()
     purpose_lower = purpose.lower() if purpose else ""
     
@@ -137,11 +172,8 @@ def get_zone(text, purpose="", default="Z2"):
 
 
 def get_recovery(text, check_next=False, next_part=None):
-    """
-    Extract recovery duration from text.
-
-    """
-    # Match patterns like "+ 60 sec rest", "with 60 sec rest", "and 60 sec rest"
+    """Extract recovery duration from text."""
+    
     recovery_match = re.search(
         r"(?:\+|with|and|all with)\s+(\d+)\s*(min|mins|minute|minutes|sec|secs|second|seconds)?\s*(?:jog|walk|recovery|rest)",
         text.lower()
@@ -168,10 +200,8 @@ def get_recovery(text, check_next=False, next_part=None):
 
 
 def format_strides(activity, steps):
-    """
-    Format strides for easy runs. Adds strides steps if found.
-    Returns True if strides were added, False otherwise.
-    """
+    """Format strides for easy runs. Adds strides steps if found."""
+    
     # Match format: "& Strides 5x10sec + 50sec rest" or "Strides 5x10sec + 50sec rest"
     strides_match = re.search(r"(?:&|strides)\s+(\d+)x(\d+)sec\s*\+\s*(\d+)sec\s*rest", activity, re.IGNORECASE)
     if strides_match:
@@ -204,10 +234,8 @@ def format_strides(activity, steps):
 
 
 def format_hills(activity, steps, purpose=""):
-    """
-    Format hill repeats. Adds hill steps if found.
- 
-    """
+    """Format hill repeats. Adds hill steps if found."""
+    
     if "hills" not in activity.lower() and "hill" not in activity.lower():
         return False
     
