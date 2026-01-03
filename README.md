@@ -1,16 +1,19 @@
-Training Plan Upload
+**Training Plan upload from Gsheets to intervals.icu**
 
+We have two types of upload, simple plan and extensive plan. 
 Upload your training plan from Google Sheets to [intervals.icu](https://intervals.icu) so it can be synced adn uploaded to your Garmin device. 
 
-**Pre Requisites Setup**
+## Installation and API Setup 
 
-1. Install Dependencies
+Install Dependencies
 
 ```bash
 pip install -r Configs/requirements.txt
 ```
 
-2. Google Sheets OAuth Setup
+Google Sheets OAuth Setup
+
+<details>
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Create a new project (or select existing)
@@ -36,14 +39,20 @@ pip install -r Configs/requirements.txt
    - Download the JSON file
    - Save it as `Configs/oauth_credentials.json` in the project directory
 
-3. intervals.icu API Setup
+</details>
+
+intervals.icu API Setup
+
+<details>
 
 1. Log in to [intervals.icu](https://intervals.icu)
 2. Go to Settings → Developer
 3. Create an API key (or use existing)
 4. Find your Athlete ID in Settings → Account (format: `i12345`)
 
-4. Configure the Script
+</details>
+
+Configure the Script
 
 1. Copy the example config:
    ```bash
@@ -70,10 +79,12 @@ pip install -r Configs/requirements.txt
    - `sheet_name`: Optional - name of the specific sheet tab to use (defaults to first sheet)
    - `credentials_file`: Path to your OAuth credentials file (relative to project root: `Configs/oauth_credentials.json`)
 
-**Running the tool - Simple plan**
+## Running Commands - (Simple plan example)
 
 GSheets
 https://docs.google.com/spreadsheets/d/1cMErpnjcfHi9aQ3Vk1bJ4qO_3Y3kbLWIY9-pppNEjwA/edit?gid=1300751842#gid=1300751842
+
+CSV
 .csv file Example_simple_plan.csv
 
 **Note:** 
@@ -98,18 +109,18 @@ Use a local CSV file instead of Google Sheets
 ```bash
 python3 Scripts/upload_simple_plan.py --csv "Example_simple_plan.csv" --week 1 --dry-run
 ```
+ ## Understanding plan structure 
 
-**Training Plans**
+**Simple Plan Format (Recommended)**
 
-NOTE: I am not a coach and the example training plan is a mix of sessions I enjoy and that work for me. This is not a verified plan and should be altered to each individuals needs. 
+I am not a coach and the example training plan structure has been taken from https://www.expl.space/plan and is a mix of sessions I enjoy and that work for me.
+
+ This is a basic plan structure and should be altered to each individual based on fitness levels and goals. 
 
 Example plan: 
 Gsheets:(https://docs.google.com/spreadsheets/d/1fXZHBjF_H9UQw7LEisU3upLH70cf0ax0IHB7kOH_qhA/edit?gid=1300751842#gid=1300751842)
 
 CSV file: Example_simple_plan.csv for local upload direct from this repo
-
-**Simple Plan Format (Recommended)**
-
 The simple plan format uses a streamlined structure with "Session Type: Description" format.
 
 **Plan Structure Requirements**
@@ -182,7 +193,7 @@ The extensive format provides these additional features **not available in the s
 - Multiple rows per day - Activity, Purpose, and Session Notes rows for each day
 
 
-**Troubleshooting**
+## Troubleshooting
 
 ### "Config file not found"
 Make sure you've copied `Configs/config_example.json` to `Configs/config.json` and filled in your credentials.
