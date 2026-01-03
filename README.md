@@ -1,7 +1,15 @@
 **Training Plan upload from Gsheets to intervals.icu**
 
-We have two types of upload, simple plan and extensive plan. 
-Upload your training plan from Google Sheets to [intervals.icu](https://intervals.icu) so it can be synced adn uploaded to your Garmin device. 
+This doc is for uploading your training plan from Google Sheets to [intervals.icu](https://intervals.icu) so it can be synced and shows on your Garmin device. 
+
+Two types of plan: Simple plan with 4 week training plan example, this plan can be downloaded or edited within the .csv file with your workuts and uplaoded.
+Extensive plan that has more features and allows for mmore in depth plans. 
+Read the 'Understanding the plan structure' part for features and limitations of each. 
+
+**Disclaimer: I am not a coach.**
+The example training plan structure has been taken from multiple sources including (https://www.expl.space/plan), and It is a mix of sessions that work for me. 
+
+Plans should be altered to each individual needs based on different factors such as current fitness level/injury risk management and goals. 
 
 ## Installation and API Setup 
 
@@ -10,6 +18,32 @@ Install Dependencies
 ```bash
 pip install -r Configs/requirements.txt
 ```
+Adding your credentials
+
+1. Copy the example config:
+   ```bash
+   cp Configs/config_example.json Configs/config.json
+   ```
+
+2. Edit `Configs/config.json` with your credentials:
+   ```json
+   {
+     "intervals_icu": {
+       "athlete_id": "ExampleIDi12345",
+       "api_key": "your-api-key-here"
+     },
+     "google_sheets": {
+       "sheet_id": "ExampleID:1UahP8l5RvetP3a-gHagBJDetZHJy6rak",
+       "sheet_name": "Example_sheetID:Training Plan",
+       "credentials_file": "Configs/oauth_credentials.json"
+     }
+   }
+   ```
+   - `athlete_id`: Your intervals.icu athlete ID
+   - `api_key`: Your intervals.icu API key
+   - `sheet_id`: The ID from your Google Sheet URL (the long string between `/d/` and `/edit`)
+   - `sheet_name`: Optional - name of the specific sheet tab to use (defaults to first sheet)
+   - `credentials_file`: Path to your OAuth credentials file (relative to project root: `Configs/oauth_credentials.json`)
 
 Google Sheets OAuth Setup
 
@@ -52,40 +86,7 @@ intervals.icu API Setup
 
 </details>
 
-Configure the Script
-
-1. Copy the example config:
-   ```bash
-   cp Configs/config_example.json Configs/config.json
-   ```
-
-2. Edit `Configs/config.json` with your credentials:
-   ```json
-   {
-     "intervals_icu": {
-       "athlete_id": "ExampleIDi12345",
-       "api_key": "your-api-key-here"
-     },
-     "google_sheets": {
-       "sheet_id": "ExampleID:1UahP8l5RvetP3a-gHagBJDetZHJy6rak",
-       "sheet_name": "Example_sheetID:Training Plan",
-       "credentials_file": "Configs/oauth_credentials.json"
-     }
-   }
-   ```
-   - `athlete_id`: Your intervals.icu athlete ID
-   - `api_key`: Your intervals.icu API key
-   - `sheet_id`: The ID from your Google Sheet URL (the long string between `/d/` and `/edit`)
-   - `sheet_name`: Optional - name of the specific sheet tab to use (defaults to first sheet)
-   - `credentials_file`: Path to your OAuth credentials file (relative to project root: `Configs/oauth_credentials.json`)
-
-## Running Commands - (Simple plan example)
-
-GSheets
-https://docs.google.com/spreadsheets/d/1cMErpnjcfHi9aQ3Vk1bJ4qO_3Y3kbLWIY9-pppNEjwA/edit?gid=1300751842#gid=1300751842
-
-CSV
-.csv file Example_simple_plan.csv
+## Running Commands
 
 **Note:** 
 On first run, a browser window will open for OAuth authentication. After that, your credentials are saved and you won't need to authenticate again.
@@ -113,15 +114,13 @@ python3 Scripts/upload_simple_plan.py --csv "Example_simple_plan.csv" --week 1 -
 
 **Simple Plan Format (Recommended)**
 
-I am not a coach and the example training plan structure has been taken from https://www.expl.space/plan and is a mix of sessions I enjoy and that work for me.
+**Example simple plan**
 
- This is a basic plan structure and should be altered to each individual based on fitness levels and goals. 
+GSheets
+https://docs.google.com/spreadsheets/d/1cMErpnjcfHi9aQ3Vk1bJ4qO_3Y3kbLWIY9-pppNEjwA/edit?gid=1300751842#gid=1300751842
 
-Example plan: 
-Gsheets:(https://docs.google.com/spreadsheets/d/1fXZHBjF_H9UQw7LEisU3upLH70cf0ax0IHB7kOH_qhA/edit?gid=1300751842#gid=1300751842)
-
+CSV
 CSV file: Example_simple_plan.csv for local upload direct from this repo
-The simple plan format uses a streamlined structure with "Session Type: Description" format.
 
 **Plan Structure Requirements**
 
@@ -146,7 +145,6 @@ The plan structure **must** be followed exactly for the parser to work correctly
 - Long runs - `Long Run: 60min Zone 2`
 - Long runs with segments - `Long run: 20min zone 2 +\n10min zone 3 +\n20min zone 2`
 - Distance-based runs - `Easy: 10km Zone 2`
-
 
 **Extensive Plan Format (Advanced)**
 
