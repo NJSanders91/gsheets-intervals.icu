@@ -35,7 +35,6 @@ def format_simple_workout(activity_desc, purpose=""):
             return "\n".join(steps)
     
     # Handle multiple blocks separated by newlines or "+" (for intervals or long runs)
-    # Split by newlines first
     if "\n" in activity_desc:
         blocks = [b.strip() for b in activity_desc.split("\n") if b.strip()]
     elif "+" in activity_desc and "x" not in activity_desc:

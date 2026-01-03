@@ -35,7 +35,7 @@ def format_workout_steps(activity):
             steps.append("\n- Cooldown")
             return "\n".join(steps)
     
-    # Long run: "Long 80 mins" or "Long 80 mins + 8x5 mins Z3" or "80 mins inc. 8x5 mins Z3"
+    # Long run
     if "long" in activity_lower or "inc." in activity_lower:
         steps = ["- Warmup"]
         match = re.search(r"(\d+)\s*mins?", activity)
