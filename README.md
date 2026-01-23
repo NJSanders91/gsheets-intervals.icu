@@ -117,8 +117,8 @@ python3 Scripts/upload_simple_plan.py --csv "Example_simple_plan.csv" --week 1 -
 **Example simple plan**
 
 GSheets
-https://docs.google.com/spreadsheets/d/1cMErpnjcfHi9aQ3Vk1bJ4qO_3Y3kbLWIY9-pppNEjwA/edit?gid=1300751842#gid=1300751842
-
+[[https://docs.google.com/spreadsheets/d/1cMErpnjcfHi9aQ3Vk1bJ4qO_3Y3kbLWIY9-pppNEjwA/edit?gid=1300751842#gid=1300751842
+](https://docs.google.com/spreadsheets/d/1F6qmX0WlrTazLbzZqysgtHBdAHTJn3zL/edit?gid=1300751842#gid=1300751842)](https://docs.google.com/spreadsheets/d/1F6qmX0WlrTazLbzZqysgtHBdAHTJn3zL/edit?gid=1300751842#gid=1300751842)
 CSV
 CSV file: Example_simple_plan.csv for local upload direct from this repo
 
