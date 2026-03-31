@@ -66,7 +66,7 @@ def format_workout_steps(activity):
             rest_str = f"{rest_secs // 60}m" if rest_secs >= 60 else f"{rest_secs}s"
             steps.append(f"\nIntervals {reps}x")
             steps.append(f"- {dur_str} Z{zone} HR")
-            steps.append(f"- {rest_str} Z1 HR Rest")
+            steps.append(f"- {rest_str} Z1 HR")
         steps.append("\n- 10m Z2 HR")
         steps.append("- Cooldown")
         return "\n".join(steps)
@@ -106,14 +106,14 @@ def parse_session_notes(session_note, is_interval=False):
     zone_map = {
         "rest": "Z1",
         "recovery": "Z1",
-        "jog": "Z1",
+        "steady jog": "Z1",
         "walk": "Z1",
         "easy": "Z2",
         "steady": "Z2",
         "moderate": "Z2",
         "tempo": "Z3",
-        "threshold": "Z3",
         "marathon": "Z3",
+        "threshold": "Z4",
         "hard": "Z4",
         "vo2max": "Z4",
         "fast": "Z4",
@@ -197,7 +197,7 @@ def parse_session_notes(session_note, is_interval=False):
                     steps.append(f"\nIntervals {reps}x")
                     steps.append(f"- {duration} {zone} HR")
                     if recovery_str:
-                        steps.append(f"- {recovery_str} Z1 HR Rest")
+                        steps.append(f"- {recovery_str} Z1 HR")
             i += 1
             continue
         
@@ -220,13 +220,13 @@ def parse_session_notes(session_note, is_interval=False):
                     steps.append(f"\nIntervals {reps}x")
                     steps.append(f"- {duration} {zone} HR")
                     if recovery_str:
-                        steps.append(f"- {recovery_str} Z1 HR Rest")
+                        steps.append(f"- {recovery_str} Z1 HR ")
             else:
                 zone = get_zone(part, "", "Z4")
                 steps.append(f"\nIntervals {reps}x")
                 steps.append(f"- {duration} {zone} HR")
                 if recovery_str:
-                    steps.append(f"- {recovery_str} Z1 HR Rest")
+                    steps.append(f"- {recovery_str} Z1 HR")
             
             # Skip recovery part if it was in next part
             if recovery_str and recovery_str not in part_lower and i + 1 < len(parts):
@@ -297,10 +297,10 @@ def match_session_notes_to_workout(session_note, activity, purpose=""):
         return None
     
     # Interval session - matches interval workouts (must have "x" and ":" pattern in activity)
-    # OR matches if purpose is VO2max
+    # OR matches if purpose is VO2max or Threshold
     if "interval" in session_note_lower:
         # Match if activity is an interval workout OR purpose is VO2max
-        if ("x" in activity_lower and ":" in activity) or "vo2max" in purpose_lower:
+        if ("x" in activity_lower and ":" in activity) or "vo2max" in purpose_lower or "threshold" in purpose_lower:
             return parse_session_notes(session_note, is_interval=True)
         # Don't match interval session notes to non-interval activities
         return None
@@ -324,12 +324,10 @@ def match_session_notes_to_workout(session_note, activity, purpose=""):
         if "long run" in session_note_lower and "long" not in activity_lower and "inc." not in activity_lower:
             return None
         # Check if it's an interval workout
-        is_interval_workout = ("x" in activity_lower and ":" in activity) or "vo2max" in purpose_lower
+        is_interval_workout = ("x" in activity_lower and ":" in activity) or "vo2max" in purpose_lower or "threshold" in purpose_lower
         return parse_session_notes(session_note, is_interval=is_interval_workout)
     
     return None
-
-
 def parse_training_plan(rows):
     """Parse sheet rows into events."""
     

@@ -25,27 +25,64 @@ def load_config(path=None):
         return json.load(f)
 
 
-def get_sheets_service(token_file=None):
-    """Get Google Sheets service using saved token."""
+def get_sheets_service(token_file=None, config_path=None):
+    """Get Google Sheets service, handling OAuth authentication if needed."""
     
     script_dir = os.path.dirname(os.path.abspath(__file__))
+    SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
     
-    # Default token file to Configs folder
+    # Default paths
     if token_file is None:
         token_file = os.path.join(script_dir, "..", "Configs", "token.pickle")
+    if config_path is None:
+        config_path = os.path.join(script_dir, "..", "Configs", "config.json")
     
-    # Load saved token
-    if not os.path.exists(token_file):
-        raise Exception(f"Token file '{token_file}' not found. Run OAuth setup first.")
+    creds = None
     
-    with open(token_file, 'rb') as token:
-        creds = pickle.load(token)
+    # Try to load existing token
+    if os.path.exists(token_file):
+        try:
+            with open(token_file, 'rb') as token:
+                creds = pickle.load(token)
+        except Exception:
+            creds = None
     
-    # Refresh if expired
+    # Try to refresh if expired
     if creds and creds.expired and creds.refresh_token:
-        creds.refresh(Request())
+        try:
+            creds.refresh(Request())
+            with open(token_file, 'wb') as token:
+                pickle.dump(creds, token)
+        except Exception:
+            # Token refresh failed (revoked/expired), need to re-authenticate
+            creds = None
+    
+    # If no valid credentials, run OAuth flow
+    if not creds or not creds.valid:
+        # Load OAuth credentials from config.json
+        with open(config_path) as f:
+            config = json.load(f)
+        
+        oauth_creds = config.get("Oauth Credentials")
+        if not oauth_creds:
+            raise Exception("OAuth credentials not found in config.json. Add 'Oauth Credentials' section.")
+        
+        # Create a temporary credentials file for the flow
+        import tempfile
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+            json.dump(oauth_creds, tmp)
+            tmp_path = tmp.name
+        
+        try:
+            flow = InstalledAppFlow.from_client_secrets_file(tmp_path, SCOPES)
+            creds = flow.run_local_server(port=0)
+        finally:
+            os.unlink(tmp_path)
+        
+        # Save the new token
         with open(token_file, 'wb') as token:
             pickle.dump(creds, token)
+        print("New OAuth token saved!")
     
     return build("sheets", "v4", credentials=creds)
 

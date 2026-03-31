@@ -1,4 +1,4 @@
-**Training Plan upload from Gsheets to intervals.icu**
+## **Training Plan upload from Gsheets to intervals.icu**
 
 This doc is for uploading your training plan from Google Sheets to [intervals.icu](https://intervals.icu) so it can be synced and shows on your Garmin device. 
 
@@ -10,6 +10,27 @@ Read the 'Understanding the plan structure' part for features and limitations of
 The example training plan structure has been taken from multiple sources including (https://www.expl.space/plan), and It is a mix of sessions that work for me. 
 
 Plans should be altered to each individual needs based on different factors such as current fitness level/injury risk management and goals. 
+
+---
+
+## 🚀 Quick Start: Choose Your Setup Method
+
+### Option A: Google Apps Script (No Installation Required) ⭐ Recommended for Non-Technical Users
+
+Run the uploader directly from your Google Sheet - no terminal, no Python, no installation needed!
+
+1. Open your training plan spreadsheet in Google Sheets
+2. Go to **Extensions → Apps Script**
+3. Copy the code from [`GoogleAppsScript/Code.gs`](GoogleAppsScript/Code.gs) and paste it
+4. Save, refresh your spreadsheet, and use the new **"Training Plan"** menu
+
+📖 **[Full setup instructions →](GoogleAppsScript/SETUP_INSTRUCTIONS.md)**
+
+---
+
+### Option B: Python Script (For Technical Users)
+
+If you prefer running scripts locally or want more control, use the Python version below.
 
 ## Installation and API Setup 
 
@@ -29,12 +50,12 @@ Adding your credentials
    ```json
    {
      "intervals_icu": {
-       "athlete_id": "ExampleIDi12345",
+       "athlete_id": "i12345",
        "api_key": "your-api-key-here"
      },
      "google_sheets": {
-       "sheet_id": "ExampleID:1UahP8l5RvetP3a-gHagBJDetZHJy6rak",
-       "sheet_name": "Example_sheetID:Training Plan",
+       "sheet_id": "1UahP8l5RvetP3a-gHagBJDetZHJy6rak",
+       "sheet_name": "Training Plan",
        "credentials_file": "Configs/oauth_credentials.json"
      }
    }
@@ -148,8 +169,7 @@ The plan structure **must** be followed exactly for the parser to work correctly
 
 **Extensive Plan Format (Advanced)**
 
-This allows more flexibility and different workout plan formats. You will still need separate Activity, Purpose, and Session Notes rows. 
-
+This allows more flexibility and different workout plan formats. You will need separate Activity, Purpose, and Session Notes rows. 
 
 The extensive format is designed for more miles/detailed workouts or multiple workouts per day. Activity is the type (run/weights), purpose is the goal of the workout session notes has the breakdown. 
 
@@ -189,7 +209,6 @@ The extensive format provides these additional features **not available in the s
 - Separate Purpose row - Track workout purpose separately from activity description
 - Session Notes row - Detailed breakdown of workouts in separate row
 - Multiple rows per day - Activity, Purpose, and Session Notes rows for each day
-
 
 ## Troubleshooting
 
