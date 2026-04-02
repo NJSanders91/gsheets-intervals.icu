@@ -10,7 +10,6 @@ import os
 from datetime import datetime, timedelta
 from utils import load_config, get_sheets_service, fetch_sheet, upload_events, parse_duration, get_zone, get_recovery, format_strides, format_hills, parse_week_start
 
-
 def format_workout_steps(activity):
     """Convert activity text to intervals.icu workout step format."""
     steps = ["- Warmup\n- 10m Z2 HR"]
@@ -394,19 +393,23 @@ def parse_training_plan(rows):
                 
                 # Create run event
                 run_name = re.sub(r"\s+and\s+.*strength.*", "", activity, flags=re.IGNORECASE).strip()
+                event_name = run_name
                 
                 # Build description
                 if matched_note:
                     desc = f"Purpose: {purpose}\n\n{matched_note}" if purpose else matched_note
                 else:
                     workout_steps = format_workout_steps(run_name)
-                    desc = f"Purpose: {purpose}\n\n{workout_steps}" if purpose and workout_steps else (workout_steps or "")
+                    if purpose:
+                        desc = f"Purpose: {purpose}\n\n{workout_steps}" if workout_steps else f"Purpose: {purpose}"
+                    else:
+                        desc = workout_steps or ""
                 
                 event = {
                     "start_date_local": date.strftime("%Y-%m-%dT00:00:00"),
-                    "category": "RACE" if "race" in activity.lower() else "WORKOUT",
+                    "category": "WORKOUT",
                     "type": "Run",
-                    "name": run_name,
+                    "name": event_name,
                     "description": desc.strip(),
                 }
                 if week_number is not None:

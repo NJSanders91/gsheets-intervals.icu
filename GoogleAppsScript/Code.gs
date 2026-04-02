@@ -209,7 +209,6 @@ function previewEvents() {
   uploadTrainingPlan(null, true);
 }
 
-
 // ============================================================================
 // SETTINGS STORAGE
 // ============================================================================
@@ -333,11 +332,12 @@ function uploadEvents(events, athleteId, apiKey) {
   try {
     const response = UrlFetchApp.fetch(url, options);
     const code = response.getResponseCode();
+    const body = response.getContentText();
     
     if (code === 200) {
       return { success: true };
     } else {
-      return { success: false, error: `HTTP ${code}: ${response.getContentText()}` };
+      return { success: false, error: `HTTP ${code}: ${body}` };
     }
   } catch (error) {
     return { success: false, error: error.message };
@@ -361,7 +361,7 @@ function parseTrainingPlan(rows) {
     const row = rows[i];
     if (row.length < 2) continue;
     
-    const label = (row[1] || '').toString().trim().toLowerCase();
+    const label = normalizeSheetText((row[1] || '').toString()).toLowerCase();
     
     // Week header
     if (label.includes('week') && /\d+\s+\w+\s*-/.test(row[1])) {
@@ -404,19 +404,20 @@ function parseTrainingPlan(rows) {
       
       // Process each day
       for (let dayIdx = 0; dayIdx < activities.length; dayIdx++) {
-        const activity = (activities[dayIdx] || '').toString().trim();
+        const activity = normalizeSheetText((activities[dayIdx] || '').toString());
         if (!activity || activity.toLowerCase() === 'rest') continue;
         
         const date = new Date(weekStart);
         date.setDate(date.getDate() + dayIdx);
         
-        const purpose = (purposes[dayIdx] || '').toString().trim();
-        const sessionNote = (localSessionNotes[dayIdx] || sessionNotes[dayIdx] || '').toString().trim();
+        const purpose = normalizeSheetText((purposes[dayIdx] || '').toString());
+        const sessionNote = normalizeSheetText((localSessionNotes[dayIdx] || sessionNotes[dayIdx] || '').toString());
         const matchedNote = matchSessionNotesToWorkout(sessionNote, activity, purpose);
         
         // Check for combined workout (run + strength)
         const hasStrength = activity.toLowerCase().includes('strength');
         const runName = activity.replace(/\s+and\s+.*strength.*/i, '').trim();
+        const eventName = runName;
         
         // Build description
         let desc;
@@ -424,15 +425,19 @@ function parseTrainingPlan(rows) {
           desc = purpose ? `Purpose: ${purpose}\n\n${matchedNote}` : matchedNote;
         } else {
           const workoutSteps = formatWorkoutSteps(runName);
-          desc = purpose && workoutSteps ? `Purpose: ${purpose}\n\n${workoutSteps}` : (workoutSteps || '');
+          if (purpose) {
+            desc = workoutSteps ? `Purpose: ${purpose}\n\n${workoutSteps}` : `Purpose: ${purpose}`;
+          } else {
+            desc = workoutSteps || '';
+          }
         }
         
         // Create run event
         const event = {
           start_date_local: formatDate(date),
-          category: activity.toLowerCase().includes('race') ? 'RACE' : 'WORKOUT',
+          category: 'WORKOUT',
           type: 'Run',
-          name: runName,
+          name: eventName,
           description: desc.trim()
         };
         
@@ -460,6 +465,24 @@ function parseTrainingPlan(rows) {
   }
   
   return events;
+}
+
+/**
+ * Normalize sheet text at source to avoid hidden invalid chars
+ */
+function normalizeSheetText(value) {
+  if (!value) return '';
+  let text = String(value);
+  // Normalize non-breaking spaces and line endings
+  text = text.replace(/\u00A0/g, ' ').replace(/\r\n?/g, '\n');
+  // Remove control chars except tab/newline
+  text = text.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '');
+  // Collapse repeated whitespace and trim
+  text = text.replace(/[ \t]+/g, ' ').trim();
+  // Remove unpaired surrogate code points which can break strict JSON parsers.
+  text = text.replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/g, '');
+  text = text.replace(/(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '');
+  return text;
 }
 
 /**
@@ -497,11 +520,14 @@ function parseWeekStart(text) {
     return null;
   }
   
-  // Handle year rollover
-  if (monthNum > currentMonth + 6) {
-    year -= 1;
-  } else if (monthNum < currentMonth && monthNum <= 2) {
+  // Handle year rollover only near year boundaries.
+  // Example: in Oct-Dec, Jan/Feb/Mar likely belongs to next year.
+  if (currentMonth >= 9 && monthNum <= 2) {
     year += 1;
+  }
+  // Example: in Jan-Mar, Oct/Nov/Dec may belong to previous year.
+  else if (currentMonth <= 2 && monthNum >= 9) {
+    year -= 1;
   }
   
   return new Date(year, monthNum, day);

@@ -8,7 +8,6 @@ import os
 from datetime import datetime, timedelta
 from utils import load_config, get_sheets_service, fetch_sheet, upload_events, parse_duration, get_zone, get_recovery, format_strides, parse_week_start
 
-
 def parse_simple_activity(activity_text):
     """Parse "Type: Description" format."""
     # Preserve newlines in description for multi-block parsing
@@ -109,17 +108,19 @@ def parse_simple_training_plan(rows):
                 purpose, activity_desc = parse_simple_activity(activity_text)
                 workout_steps = format_simple_workout(activity_desc, purpose)
                 
-                if workout_steps:
+                if workout_steps or purpose or activity_desc:
                     # Name is the workout type (purpose), description is the workout summary
-                    workout_name = purpose if purpose else activity_desc.split("\n")[0].split(":")[0].strip()
+                    workout_name = activity_desc.split("\n")[0].split(":")[0].strip()
                     workout_summary = activity_desc.strip()
+                    details = f"\n{workout_steps}" if workout_steps else ""
+                    description = f"Purpose: {purpose}\n{workout_summary}{details}" if purpose else f"{workout_summary}{details}"
                     
                     events.append({
                         "start_date_local": (week_start + timedelta(days=day_idx)).strftime("%Y-%m-%dT00:00:00"),
                         "category": "WORKOUT",
                         "type": "Run",
                         "name": workout_name,
-                        "description": f"{workout_summary}\n{workout_steps}",
+                        "description": description,
                         "week_number": week_number,
                     })
     

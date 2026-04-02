@@ -150,11 +150,13 @@ def parse_week_start(text):
     if not day or not month_num:
         return None
     
-    # Handle year rollover (Dec/Jan boundary)
-    if month_num > current_month + 6:
-        year -= 1
-    elif month_num < current_month and month_num <= 3:
+    # Handle year rollover only near year boundaries.
+    # Example: in Oct-Dec, Jan/Feb/Mar likely belongs to next year.
+    if current_month >= 10 and month_num <= 3:
         year += 1
+    # Example: in Jan-Mar, Oct/Nov/Dec may belong to previous year.
+    elif current_month <= 3 and month_num >= 10:
+        year -= 1
     
     try:
         return datetime(year, month_num, day)
