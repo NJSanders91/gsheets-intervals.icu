@@ -1,83 +1,122 @@
-## **Training Plan upload from Gsheets to intervals.icu**
+## Training Plan Uploader — Google Sheets to intervals.icu
 
-This doc is for uploading your training plan from Google Sheets to [intervals.icu](https://intervals.icu) so it can be synced and shows on your Garmin device. 
+Upload training plans from Google Sheets to [intervals.icu](https://intervals.icu) so workouts sync to athletes' Garmin devices.
 
-Two types of plan: Simple plan with 4 week training plan example, this plan can be downloaded or edited within the .csv file with your workuts and uplaoded.
-Extensive plan that has more features and allows for mmore in depth plans. 
-Read the 'Understanding the plan structure' part for features and limitations of each. 
+**Two modes:**
+- **Coach mode** — one coach manages plans for multiple athletes from a single spreadsheet, using one API key
+- **Single-athlete mode** — an individual uploads their own plan (legacy, still supported)
 
-**Disclaimer: I am not a coach.**
-The example training plan structure has been taken from multiple sources including (https://www.expl.space/plan), and It is a mix of sessions that work for me. 
-
-Plans should be altered to each individual needs based on different factors such as current fitness level/injury risk management and goals. 
+**Two plan formats:**
+- **Simple** — straightforward 4-week plans with activity descriptions
+- **Extensive** — advanced plans with separate Activity, Purpose, and Session Notes rows
 
 ---
 
-## 🚀 Quick Start: Choose Your Setup Method
+## Coach Mode (Recommended)
 
-### Option A: Google Apps Script (No Installation Required) ⭐ Recommended for Non-Technical Users
+The coach writes individualized plans in separate sheet tabs and pushes workouts to each athlete's intervals.icu calendar. Athletes never touch API keys or scripts.
 
-Run the uploader directly from your Google Sheet - no terminal, no Python, no installation needed!
+### How It Works
+
+1. Coach has one intervals.icu account with one API key
+2. Each athlete creates a free intervals.icu account, connects Garmin, and shares their account with the coach
+3. Coach adds each athlete to a roster (Athletes tab in Google Sheets or `athletes` array in config)
+4. Coach clicks "Sync All Athletes" — workouts appear on each athlete's intervals.icu calendar and sync to their Garmin
+
+Re-syncing is safe: workouts are updated in place (no duplicates) via upsert.
+
+### Athlete Onboarding (3 steps, no code)
+
+1. Create a free [intervals.icu](https://intervals.icu) account
+2. Connect Garmin: Settings > Connections
+3. Share account with coach: Settings > Coach > add coach's email
+4. Tell the coach your Athlete ID (visible in your profile URL, e.g., `i12345`)
+
+---
+
+## Quick Start: Choose Your Setup Method
+
+### Option A: Google Apps Script (No Installation Required)
+
+Run the uploader directly from Google Sheets — no terminal, no Python needed.
 
 1. Open your training plan spreadsheet in Google Sheets
-2. Go to **Extensions → Apps Script**
+2. Go to **Extensions > Apps Script**
 3. Copy the code from [`GoogleAppsScript/Code.gs`](GoogleAppsScript/Code.gs) and paste it
 4. Save, refresh your spreadsheet, and use the new **"Training Plan"** menu
+5. Click **Training Plan > Settings** to enter your coach API key
+6. Click **Training Plan > Create Athletes Tab** to set up your roster
+7. Click **Training Plan > Sync All Athletes** to push plans
 
-📖 **[Full setup instructions →](GoogleAppsScript/SETUP_INSTRUCTIONS.md)**
+[Full setup instructions](GoogleAppsScript/SETUP_INSTRUCTIONS.md)
 
 ---
 
 ### Option B: Python Script (For Technical Users)
 
-If you prefer running scripts locally or want more control, use the Python version below.
-
-## Installation and API Setup 
-
-Install Dependencies
+#### Installation
 
 ```bash
 pip install -r Configs/requirements.txt
 ```
-Adding your credentials
 
-1. Copy the example config:
-   ```bash
-   cp Configs/config_example.json Configs/config.json
-   ```
+#### Configuration
 
-2. Edit `Configs/config.json` with your credentials:
-   ```json
-   {
-     "intervals_icu": {
-       "athlete_id": "i12345",
-       "api_key": "your-api-key-here"
-     },
-     "google_sheets": {
-       "sheet_id": "1UahP8l5RvetP3a-gHagBJDetZHJy6rak",
-       "sheet_name": "Training Plan",
-       "credentials_file": "Configs/oauth_credentials.json"
-     }
-   }
-   ```
-   - `athlete_id`: Your intervals.icu athlete ID
-   - `api_key`: Your intervals.icu API key
-   - `sheet_id`: The ID from your Google Sheet URL (the long string between `/d/` and `/edit`)
-   - `sheet_name`: Optional - name of the specific sheet tab to use (defaults to first sheet)
-   - `credentials_file`: Path to your OAuth credentials file (relative to project root: `Configs/oauth_credentials.json`)
+Copy and edit the config file:
+```bash
+cp Configs/config_example.json Configs/config.json
+```
 
-Google Sheets OAuth Setup
+**Coach mode config:**
+```json
+{
+  "intervals_icu": {
+    "api_key": "your-coach-api-key"
+  },
+  "athletes": [
+    {
+      "name": "Jane Doe",
+      "athlete_id": "i12345",
+      "sheet_name": "Jane - Marathon"
+    },
+    {
+      "name": "Bob Smith",
+      "athlete_id": "i67890",
+      "sheet_name": "Bob - 10K"
+    }
+  ],
+  "google_sheets": {
+    "sheet_id": "your-google-sheet-id"
+  }
+}
+```
+
+**Legacy single-athlete config** (still supported):
+```json
+{
+  "intervals_icu": {
+    "athlete_id": "i12345",
+    "api_key": "your-api-key"
+  },
+  "google_sheets": {
+    "sheet_id": "your-google-sheet-id",
+    "sheet_name": "Training Plan"
+  }
+}
+```
+
+#### Google Sheets OAuth Setup
 
 <details>
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Create a new project (or select existing)
 3. Enable the Google Sheets API:
-   - Go to "APIs & Services" → "Library"
+   - Go to "APIs & Services" > "Library"
    - Search for "Google Sheets API"
    - Click "Enable"
 4. Configure OAuth Consent Screen:
-   - Go to "APIs & Services" → "OAuth consent screen"
+   - Go to "APIs & Services" > "OAuth consent screen"
    - Choose "External" (unless you have a Google Workspace)
    - Fill in required fields (App name, User support email, etc.)
    - Click "Save and Continue"
@@ -86,8 +125,8 @@ Google Sheets OAuth Setup
    - Click "Save and Continue"
    - Make sure "Publishing status" shows "Testing" (not "In production")
 5. Create OAuth 2.0 Credentials:
-   - Go to "APIs & Services" → "Credentials"
-   - Click "Create Credentials" → "OAuth client ID"
+   - Go to "APIs & Services" > "Credentials"
+   - Click "Create Credentials" > "OAuth client ID"
    - Application type: **"Desktop app"**
    - Name: "Training Plan Uploader" (or any name)
    - Click "Create"
@@ -96,23 +135,42 @@ Google Sheets OAuth Setup
 
 </details>
 
-intervals.icu API Setup
+#### intervals.icu API Setup
 
 <details>
 
 1. Log in to [intervals.icu](https://intervals.icu)
-2. Go to Settings → Developer
-3. Create an API key (or use existing)
-4. Find your Athlete ID in Settings → Account (format: `i12345`)
+2. Go to Settings > Developer Settings
+3. Create an API key
+4. Find your Athlete ID (format: `i12345`) in your profile URL
 
 </details>
 
-## Running Commands
+#### Running Commands — Coach Mode
 
-**Note:** 
-On first run, a browser window will open for OAuth authentication. After that, your credentials are saved and you won't need to authenticate again.
+Sync all athletes:
+```bash
+python3 Scripts/upload_extensive_plan.py --all
+```
 
-Preview
+Sync a specific athlete:
+```bash
+python3 Scripts/upload_extensive_plan.py --athlete "Jane Doe"
+```
+
+Preview before uploading:
+```bash
+python3 Scripts/upload_extensive_plan.py --all --dry-run
+```
+
+Sync a specific week:
+```bash
+python3 Scripts/upload_extensive_plan.py --athlete "Jane Doe" --week 3
+```
+
+#### Running Commands — Legacy Single-Athlete Mode
+
+Preview:
 ```bash
 python3 Scripts/upload_simple_plan.py --week 1 --dry-run
 ```
@@ -122,117 +180,96 @@ Upload specific week:
 python3 Scripts/upload_simple_plan.py --week 1
 ```
 
-Upload all
+Upload all:
 ```bash
 python3 Scripts/upload_simple_plan.py
 ```
 
-Use a local CSV file instead of Google Sheets
+Use a local CSV file:
 ```bash
 python3 Scripts/upload_simple_plan.py --csv "Example_simple_plan.csv" --week 1 --dry-run
 ```
- ## Understanding plan structure 
 
-**Simple Plan Format (Recommended)**
+---
 
-**Example simple plan**
+## Understanding Plan Structure
 
-GSheets
-https://docs.google.com/spreadsheets/d/1fXZHBjF_H9UQw7LEisU3upLH70cf0ax0IHB7kOH_qhA/edit?gid=1300751842#gid=1300751842
+### Simple Plan Format
 
-CSV
-CSV file: Example_simple_plan.csv for local upload direct from this repo
+**Example simple plan:**
+- [Google Sheet](https://docs.google.com/spreadsheets/d/1fXZHBjF_H9UQw7LEisU3upLH70cf0ax0IHB7kOH_qhA/edit?gid=1300751842#gid=1300751842)
+- CSV: `Example_simple_plan.csv`
 
-**Plan Structure Requirements**
+**Plan Structure Requirements:**
 
-The plan structure **must** be followed exactly for the parser to work correctly:
+1. **Do not edit row or column structure** — the parser expects activities in columns C-I (Monday-Sunday)
+2. **Dates must be in format** `"Jan 5 - Jan 11"` or `"(Jan 5 - Jan 11)"`
+3. **Supported workout type must be stated in activity** — Easy, Intervals, Hill Intervals, Tempo, Threshold, Sprints, Long Run, Recovery
+4. **Supported signs**: `&` or `+` for additional blocks, `x` for repetitions (e.g., `5x3min`)
 
-1. **Do not edit Row or Column structure** - The parser expects activities in specific columns (C-I for Monday-Sunday)
-2. **Dates must be in format** `"Jan 5 - Jan 11"` or `"(Jan 5 - Jan 11)"` - Required for the parser to extract week start dates
-3. **Supported workout type must be stated in activity** - Use workout types like: Easy, Intervals, Hill Intervals, Tempo, Threshold, Sprints, Long Run, Recovery
-4. **Supported signs**: Use `&` or `+` for additional blocks, `x` for multiple intervals (e.g., `5x3min` means 5 repetitions of 3 minutes)
+**Supported Workout Types:**
 
-**Supported Workout Type examples:**
+| Format | Example |
+|--------|---------|
+| Recovery run | `Recovery: 30min Zone 1` |
+| Easy run | `Easy: 60min Zone 2` |
+| Easy with strides | `Easy: 60min Zone 2 & Strides 5x10sec + 50sec rest` |
+| Intervals | `Intervals: 5x3min in Zone 3 + 60 sec rest` |
+| Multiple interval blocks | `Intervals: 5x3min Z3 + 60sec rest\n5x3min Z4 + 60sec rest` |
+| Hill intervals | `Hill Intervals: 20x1min in Zone 4 + 2min rest` |
+| Tempo | `Tempo: 20min Zone 3` |
+| Threshold | `Threshold: 15min Zone 4` |
+| Sprints | `Sprints: 10x30sec + 60sec rest` |
+| Long run | `Long Run: 60min Zone 2` |
+| Long run with segments | `Long run: 20min zone 2 +\n10min zone 3 +\n20min zone 2` |
+| Distance-based | `Easy: 10km Zone 2` |
 
-- Recovery runs - `Recovery: 30min Zone 1`
-- Easy runs - `Easy: 60min Zone 2`
-- Easy runs with strides - `Easy: 60min Zone 2 & Strides 5x10sec + 50sec rest`
-- Interval sessions - `Intervals: 5x3min in Zone 3 + 60 sec rest`
-- Multiple interval blocks - `Intervals: 5x3min in Zone 3 + 60sec rest\n5x3min in Zone 4 + 60sec rest`
-- Hill intervals - `Hill Intervals: 20x1min in Zone 4 + 2min rest`
-- Tempo runs - `Tempo: 20min Zone 3` (or `Tempo: 20min` - defaults to Z3)
-- Threshold runs - `Threshold: 15min Zone 4` (or `Threshold: 15min` - defaults to Z4)
-- Sprints - `Sprints: 10x30sec + 60sec rest` (defaults to Z5)
-- Long runs - `Long Run: 60min Zone 2`
-- Long runs with segments - `Long run: 20min zone 2 +\n10min zone 3 +\n20min zone 2`
-- Distance-based runs - `Easy: 10km Zone 2`
+### Extensive Plan Format (Advanced)
 
-**Extensive Plan Format (Advanced)**
-
-This allows more flexibility and different workout plan formats. You will need separate Activity, Purpose, and Session Notes rows. 
-
-The extensive format is designed for more miles/detailed workouts or multiple workouts per day. Activity is the type (run/weights), purpose is the goal of the workout session notes has the breakdown. 
-
-#### When to Use Extensive Format
-
-Use the extensive format if you need:
-- **Separate Purpose tracking** - Track workout purpose separately from activity description
-- **Complex session notes** - Detailed session notes with zone progressions, multiple interval blocks, etc.
-- **Advanced workout parsing** - Support for complex formats like zone progressions, marathon effort intervals, etc.
-- **Combined workouts** - Support for multiple workouts in one day. For example run + strength workouts in one cell
+Separate Activity, Purpose, and Session Notes rows for detailed multi-workout plans.
 
 **Sheet Structure:**
 ```
 Row: Week header and date range (e.g., "Week 1\n22 Dec - 28 Dec")
-Row: Activity    | Recovery Run & Strength workout | Interval Session | ... | Sunday Run
-Row: Purpose     | Recovery       | Mechanics       | ... | Specific Endurance
-Row: Session Notes | ...          | ...             | ... | ...
+Row: Activity    | Recovery Run & Strength | Interval Session | ... | Sunday Run
+Row: Purpose     | Recovery                | Mechanics        | ... | Endurance
+Row: Session Notes | ...                   | ...              | ... | ...
 ```
 
-**Extra Features in Extensive Format**
+**Additional features not in simple plan:**
+- Long runs with intervals — `80 mins inc. 8x5 mins Z3`
+- Auto-progression runs — `15km progression run` (auto-divides into 3 segments)
+- Race events — `HM Race` (sets category to "RACE")
+- Combined workouts — `Recovery 30 mins and Leg Strength` (creates Run + Strength events)
+- Zone progressions — `first 5 reps in Zone 3, final 5 reps in Zone 4`
+- Multiple interval blocks in session notes — `5x3 min + 8x1:15 min`
+- Keyword zone mapping — words like "easy", "tempo", "threshold" auto-map to zones
 
-The extensive format provides these additional features **not available in the simple plan**:
-
-**Unique Workout Formats:**
-- Long runs with intervals - `80 mins inc. 8x5 mins Z3` or `Long 80 mins + 8x5 mins Z3` (long run + interval parsing)
-- Auto-progression runs - `15km progression run` (automatically divides into 3 equal segments)
-- Race events - `HM Race` (sets category to "RACE" instead of "WORKOUT")
-- Combined workouts - `Recovery 30 mins and Leg Strength` (creates separate Run + Strength events)
-
-**Detailed Session Notes Features:**
-- Zone progressions -  "first X reps in Zone Y, final Z reps in Zone W" (e.g., "first 5 reps in Zone 3, final 5 reps in Zone 4")
-- Multiple interval blocks - Handles "+" separated intervals in session notes (e.g., "5x3 min + 8x1:15 min")
-- Keyword zone mapping - Converts words like "easy", "recovery", "tempo", "threshold" to zones in session notes
-
-**Format Differences:**
-- Allow for multiple session in one day using Activities row
-- Separate Purpose row - Track workout purpose separately from activity description
-- Session Notes row - Detailed breakdown of workouts in separate row
-- Multiple rows per day - Activity, Purpose, and Session Notes rows for each day
+---
 
 ## Troubleshooting
 
 ### "Config file not found"
-Make sure you've copied `Configs/config_example.json` to `Configs/config.json` and filled in your credentials.
+Copy `Configs/config_example.json` to `Configs/config.json` and fill in your credentials.
+
+### "No 'athletes' array in config"
+You're using `--athlete` or `--all` but your config uses the old single-athlete format. See the coach mode config example above.
 
 ### "OAuth credentials file not found"
-Make sure `Configs/oauth_credentials.json` exists in the project directory. Download it from Google Cloud Console → Credentials → OAuth client ID.
+Download `oauth_credentials.json` from Google Cloud Console > Credentials > OAuth client ID.
 
 ### "Access blocked: Training plan has not completed the Google verification process"
-- Go to "APIs & Services" → "OAuth consent screen"
-- Make sure you're added as a test user
-- Make sure the app is in "Testing" mode, not "In production"
+Go to "APIs & Services" > "OAuth consent screen", add yourself as a test user, ensure the app is in "Testing" mode.
 
-### "Failed to upload events"
+### "Failed to upload events" / HTTP 403
 - Check that your API key is correct
-- Verify your athlete ID is correct
+- For coach mode: verify the athlete has shared their intervals.icu account with your coach account
 - Ensure your API key has write permissions
 
 ### "No workouts found"
-- Check that your sheet structure matches the expected format **exactly**
-- Make sure the week headers include date ranges (e.g., "Jan 5 - Jan 11" or "(Jan 5 - Jan 11)")
-- Verify activities row comes directly after week header row (no "Session" label needed for simple plan)
-- Ensure dates are in the correct format: "Jan 5 - Jan 11" (month abbreviation, day number)
-- Check that activities are in columns C-I (Monday-Sunday)
+- Check that your sheet structure matches the expected format exactly
+- Make sure week headers include date ranges (e.g., "Jan 5 - Jan 11")
+- Verify activities are in columns C-I (Monday-Sunday)
+- Ensure the "Plan Tab" name in the Athletes roster exactly matches the sheet tab name
 
 ## License

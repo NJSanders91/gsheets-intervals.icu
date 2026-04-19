@@ -1,6 +1,7 @@
- #!/usr/bin/env python3
+#!/usr/bin/env python3
 """
-Script to upload training plan from Google Sheets to intervals.icu
+Coach training plan uploader — pushes plans to multiple athletes' intervals.icu calendars.
+Supports both coach mode (--athlete/--all) and legacy single-athlete mode.
 """
 
 import json
@@ -8,7 +9,7 @@ import re
 import csv
 import os
 from datetime import datetime, timedelta
-from utils import load_config, get_sheets_service, fetch_sheet, upload_events, parse_duration, get_zone, get_recovery, format_strides, format_hills, parse_week_start
+from utils import load_config, get_sheets_service, fetch_sheet, upload_events, parse_duration, get_zone, get_recovery, format_strides, format_hills, parse_week_start, generate_external_id
 
 def format_workout_steps(activity):
     """Convert activity text to intervals.icu workout step format."""
@@ -50,7 +51,7 @@ def format_workout_steps(activity):
                 steps.append(f"- {dur}m Z{zone} HR")
                 steps.append("- 2m Z2 HR Recovery")
             steps.append("\n- 10m Z2 HR")
-            steps.append("- Cooldown")
+            steps.append("\n- Cooldown")
             return "\n".join(steps)
     
     # Interval workout: "5x3:00 (60s) Z4"
@@ -327,6 +328,8 @@ def match_session_notes_to_workout(session_note, activity, purpose=""):
         return parse_session_notes(session_note, is_interval=is_interval_workout)
     
     return None
+
+
 def parse_training_plan(rows):
     """Parse sheet rows into events."""
     
@@ -363,7 +366,7 @@ def parse_training_plan(rows):
             # Look ahead for purposes and session notes (they come after activity row)
             purposes = []
             local_session_notes = []
-            for j in range(i + 1, min(i + 5, len(rows))):  # Look up to 4 rows ahead
+            for j in range(i + 1, min(i + 8, len(rows))):
                 if len(rows[j]) > 1:
                     next_label = rows[j][1].strip().lower()
                     if next_label == "purpose":
@@ -435,20 +438,93 @@ def parse_training_plan(rows):
 # upload_events is now imported from Utils.py
 
 
+def sync_athlete(config, athlete_name, athlete_id, sheet_name, week_filter, dry_run, service=None):
+    """Sync a single athlete's plan. Returns (success, event_count, error)."""
+
+    api_key = config["intervals_icu"]["api_key"]
+    sheet_id = config["google_sheets"]["sheet_id"]
+
+    if service is None:
+        service = get_sheets_service()
+
+    rows = fetch_sheet(service, sheet_id, sheet_name=sheet_name)
+    events = parse_training_plan(rows)
+
+    if week_filter:
+        events = [e for e in events if e.get("week_number") == week_filter]
+
+    for event in events:
+        event["external_id"] = generate_external_id(athlete_id, event["start_date_local"], event["name"])
+        event.pop("week_number", None)
+
+    print(f"\n{'─' * 60}")
+    print(f"  {athlete_name} ({athlete_id}) — {len(events)} events from '{sheet_name}'")
+    print(f"{'─' * 60}")
+    for e in events:
+        print(f"  {e['start_date_local'][:10]} | {e['name'][:35]:35} | {e['type']}")
+
+    if not events:
+        return False, 0, "No events found"
+
+    if dry_run:
+        return True, len(events), None
+
+    success, response = upload_events(events, athlete_id, api_key, upsert=True)
+    if success:
+        return True, len(events), None
+    return False, 0, response
+
+
 def main():
     import argparse
-    parser = argparse.ArgumentParser(description="Upload training plan to intervals.icu")
-    parser.add_argument("--config", default=None, help="Path to config.json (defaults to Configs/config.json)")
-    parser.add_argument("--csv", help="Use local CSV instead of Google Sheets")
+    parser = argparse.ArgumentParser(description="Upload training plans to intervals.icu (coach mode)")
+    parser.add_argument("--config", default=None, help="Path to config.json")
+    parser.add_argument("--csv", help="Use local CSV instead of Google Sheets (single-athlete only)")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--week", type=int, help="Upload only specific week number")
+    parser.add_argument("--athlete", help="Sync a specific athlete by name (coach mode)")
+    parser.add_argument("--all", action="store_true", dest="sync_all", help="Sync all athletes in roster (coach mode)")
     args = parser.parse_args()
-    
+
     config = load_config(args.config)
-    
-    # Load data
+
+    # Coach mode: --athlete or --all
+    if args.athlete or args.sync_all:
+        athletes = config.get("athletes", [])
+        if not athletes:
+            print("Error: No 'athletes' array in config. See config_example.json for coach mode format.")
+            return
+
+        if args.athlete:
+            match = [a for a in athletes if a["name"].lower() == args.athlete.lower()]
+            if not match:
+                names = ", ".join(a["name"] for a in athletes)
+                print(f"Error: Athlete '{args.athlete}' not found. Available: {names}")
+                return
+            targets = match
+        else:
+            targets = athletes
+
+        service = get_sheets_service()
+        results = []
+        for athlete in targets:
+            success, count, error = sync_athlete(
+                config, athlete["name"], athlete["athlete_id"],
+                athlete["sheet_name"], args.week, args.dry_run, service
+            )
+            results.append((athlete["name"], success, count, error))
+
+        print(f"\n{'═' * 60}")
+        print(f"  Summary: {sum(1 for _, s, _, _ in results if s)}/{len(results)} succeeded")
+        for name, success, count, error in results:
+            status = f"{count} events" if success else f"FAILED: {error}"
+            print(f"  {'OK' if success else 'FAIL'}  {name}: {status}")
+        if args.dry_run:
+            print("\n  [DRY RUN] No uploads performed.")
+        return
+
+    # Legacy single-athlete mode
     if args.csv:
-        # Resolve CSV path relative to script location or root
         if not os.path.isabs(args.csv) and not os.path.exists(args.csv):
             script_dir = os.path.dirname(os.path.abspath(__file__))
             csv_path = os.path.join(script_dir, "..", args.csv)
@@ -458,36 +534,31 @@ def main():
             rows = list(csv.reader(f))
     else:
         service = get_sheets_service()
-        sheet_name = config["google_sheets"].get("sheet_name")  # Optional: specific tab name
+        sheet_name = config["google_sheets"].get("sheet_name")
         rows = fetch_sheet(service, config["google_sheets"]["sheet_id"], sheet_name=sheet_name)
-    
-    # Parse
+
     events = parse_training_plan(rows)
-    
-    # Filter by week if specified (week number from the training program, not calculated)
+
     if args.week:
         events = [e for e in events if e.get("week_number") == args.week]
-    
-    # Remove week_number field before uploading (it's only for filtering)
+
     for event in events:
         event.pop("week_number", None)
-    
-    # Preview
+
     print(f"Found {len(events)} events:\n")
     for e in events:
         print(f"  {e['start_date_local'][:10]} | {e['name'][:35]:35} | {e['type']}")
-    
+
     if args.dry_run:
         print("\n[DRY RUN] No upload.")
         return
-    
-    # Upload
+
     athlete_id = config["intervals_icu"]["athlete_id"]
     api_key = config["intervals_icu"]["api_key"]
-    
+
     print(f"\nUploading to intervals.icu...")
     success, response = upload_events(events, athlete_id, api_key)
-    
+
     if success:
         print("Done!")
     else:

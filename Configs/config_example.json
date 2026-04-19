@@ -1,10 +1,20 @@
 {
   "intervals_icu": {
-    "athlete_id": "Your Athlete ID",
-    "api_key": "API Key"
+    "api_key": "Your Coach API Key"
   },
+  "athletes": [
+    {
+      "name": "Jane Doe",
+      "athlete_id": "i12345",
+      "sheet_name": "Jane - Marathon"
+    },
+    {
+      "name": "Bob Smith",
+      "athlete_id": "i67890",
+      "sheet_name": "Bob - 10K"
+    }
+  ],
   "google_sheets": {
-    "sheet_id": "Google sheets ID",
-    "sheet_name": "Training Plan"
+    "sheet_id": "Google Sheets ID"
   }
 }

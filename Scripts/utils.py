@@ -112,15 +112,24 @@ def fetch_sheet(service, sheet_id, sheet_name=None):
     ).execute().get("values", [])
 
 
-def upload_events(events, athlete_id, api_key):
+def upload_events(events, athlete_id, api_key, upsert=False):
     """Upload events to intervals.icu."""
-    
+
     auth = base64.b64encode(f"API_KEY:{api_key}".encode()).decode()
     url = f"https://intervals.icu/api/v1/athlete/{athlete_id}/events/bulk"
+    if upsert:
+        url += "?upsert=true"
     headers = {"Authorization": f"Basic {auth}", "Content-Type": "application/json"}
-    
+
     response = requests.post(url, headers=headers, json=events)
     return response.status_code == 200, response.text
+
+
+def generate_external_id(athlete_id, date_str, workout_name):
+    """Generate a deterministic external_id for upsert support."""
+    date = date_str[:10]
+    slug = re.sub(r'[^a-z0-9]+', '_', workout_name.lower()).strip('_')
+    return f"{athlete_id}_{date}_{slug}"
 
 
 def parse_week_start(text):

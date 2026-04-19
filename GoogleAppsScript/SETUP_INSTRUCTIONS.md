@@ -1,6 +1,6 @@
-# Training Plan Uploader - Google Apps Script Setup
+# Coach Training Plan Uploader - Setup Guide
 
-This guide will help you set up the Training Plan Uploader directly in your Google Sheets. Once set up, you can upload your training plan to intervals.icu with a single click!
+Manage training plans for multiple athletes from one Google Sheet. Push workouts to each athlete's intervals.icu calendar (and their Garmin) using your single coach API key.
 
 ---
 
@@ -8,20 +8,17 @@ This guide will help you set up the Training Plan Uploader directly in your Goog
 
 1. A Google account
 2. Your training plan spreadsheet in Google Sheets
-3. Your intervals.icu account with:
-   - Athlete ID
-   - API Key
+3. Your intervals.icu **coach** account with an API key
 
 ---
 
-## Step 1: Get Your intervals.icu Credentials
+## Step 1: Get Your Coach API Key
 
-1. Go to [intervals.icu](https://intervals.icu) and log in
-2. Click the **Settings** gear icon (⚙️) in the top right
+1. Go to [intervals.icu](https://intervals.icu) and log in to **your coach account**
+2. Click the **Settings** gear icon in the top right
 3. Scroll down and click **Developer Settings**
-4. Note your **Athlete ID** (shown at the top, looks like `i12345`)
-5. Click **Create API Key** to generate a new key
-6. **Copy and save this API key** - you'll need it in Step 3
+4. Click **Create API Key** to generate a new key
+5. **Copy and save this API key** — you'll need it in Step 3
 
 ---
 
@@ -30,44 +27,70 @@ This guide will help you set up the Training Plan Uploader directly in your Goog
 1. Open your training plan spreadsheet in Google Sheets
 2. Click **Extensions** in the menu bar
 3. Click **Apps Script**
-
-   ![Extensions Menu](https://i.imgur.com/placeholder.png)
-
 4. This opens the Apps Script editor in a new tab
 5. **Delete** any existing code in the editor (select all and delete)
 6. Open the `Code.gs` file from this folder
 7. **Copy ALL the code** from `Code.gs`
 8. **Paste** it into the Apps Script editor
-9. Click the **Save** button (💾) or press `Ctrl+S` / `Cmd+S`
-10. Give your project a name like "Training Plan Uploader" when prompted
+9. Click **Save** or press `Ctrl+S` / `Cmd+S`
+10. Give your project a name like "Coach Training Plan" when prompted
 
 ---
 
-## Step 3: Authorize the Script
+## Step 3: Initial Setup
 
 1. Close the Apps Script editor tab
 2. **Refresh** your spreadsheet page (F5 or Cmd+R)
-3. Wait a few seconds - you should see a new **"Training Plan"** menu appear
-4. Click **Training Plan → Settings**
+3. Wait a few seconds — you should see a new **"Training Plan"** menu appear
+4. Click **Training Plan > Settings**
 5. Google will ask you to authorize the script:
    - Click **Continue**
    - Select your Google account
    - Click **Advanced** (at the bottom)
-   - Click **Go to Training Plan Uploader (unsafe)**
+   - Click **Go to Coach Training Plan (unsafe)**
    - Click **Allow**
-6. The Settings dialog will now open
-7. Enter your **Athlete ID** and **API Key** from Step 1
-8. Click **Save Settings**
+6. Enter your **coach API key** from Step 1
 
 ---
 
-## Step 4: Upload Your Training Plan
+## Step 4: Create the Athletes Roster
 
-1. Make sure your spreadsheet follows the expected format (see below)
-2. Click **Training Plan → Upload to intervals.icu**
-3. Review the preview of events
-4. Click **Yes** to confirm the upload
-5. Done! Check intervals.icu to see your training plan
+1. Click **Training Plan > Create Athletes Tab**
+2. A new "Athletes" tab will be created with these columns:
+
+| Athlete Name | Athlete ID | Plan Tab | Last Synced |
+|---|---|---|---|
+| Jane Doe | i12345 | Jane - Marathon | |
+| Bob Smith | i67890 | Bob - 10K | |
+
+3. Fill in each row:
+   - **Athlete Name**: their name (for your reference)
+   - **Athlete ID**: their intervals.icu ID (e.g., `i12345` — found in their profile URL)
+   - **Plan Tab**: the name of the sheet tab containing their training plan
+4. Delete the example row
+
+---
+
+## Step 5: Athlete Onboarding
+
+Each athlete needs to do these 3 things (no code, no API keys):
+
+1. **Create a free [intervals.icu](https://intervals.icu) account**
+2. **Connect their Garmin** in intervals.icu Settings > Connections
+3. **Share their account with you**: Settings > Coach > add your coach email
+4. **Tell you their Athlete ID** (visible in their profile URL, e.g., `i12345`)
+
+You then add their ID to the Athletes tab — that's it.
+
+---
+
+## Step 6: Sync Training Plans
+
+1. Make sure each athlete has a plan tab in the expected format (see below)
+2. Click **Training Plan > Sync All Athletes** to push all plans at once
+3. Or click **Training Plan > Sync Specific Athlete...** to pick one athlete
+
+Re-syncing is safe — it **updates** existing workouts instead of creating duplicates.
 
 ---
 
@@ -75,34 +98,38 @@ This guide will help you set up the Training Plan Uploader directly in your Goog
 
 | Menu Item | Description |
 |-----------|-------------|
-| **Upload to intervals.icu** | Upload all events from your training plan |
-| **Upload Specific Week...** | Upload only a specific week (enter week number) |
-| **Preview Events (Dry Run)** | See what would be uploaded without actually uploading |
-| **Settings** | Configure your intervals.icu credentials |
+| **Sync All Athletes** | Push training plans for every athlete in the roster |
+| **Sync Specific Athlete...** | Pick one athlete to sync (with optional week filter) |
+| **Preview Athlete Plan...** | Dry run — see what would be uploaded |
+| **Create Athletes Tab** | One-time setup to create the roster tab |
+| **Settings** | Enter your coach API key |
 | **Help** | View help and format information |
+| **Refresh Authorization** | Re-authorize if things stop working |
+| **Setup Auto-Refresh** | Prevent Google from revoking script access |
 
 ---
 
-## Expected Spreadsheet Format
+## Plan Tab Format
 
-Your training plan should follow this structure:
+Each athlete's training plan tab should follow this structure:
 
 ```
-| A | B              | C (Mon)      | D (Tue)      | E (Wed)      | ... |
-|---|----------------|--------------|--------------|--------------|-----|
-|   | Week 1 22 Dec - 28 Dec |       |              |              |     |
-|   | Activity       | Rest         | 45 min Easy  | 5x3:00 (60s) Z4 | ... |
-|   | Purpose        |              | Base         | VO2max       | ... |
-|   | Session Notes  |              |              | Interval session: ... | ... |
+| A | B              | C (Mon)      | D (Tue)      | E (Wed)      | ... | I (Sun) |
+|---|----------------|--------------|--------------|--------------|-----|---------|
+|   | Week 1 22 Dec - 28 Dec |       |              |              |     |         |
+|   | Activity       | Rest         | 45 min Easy  | 5x3:00 (60s) Z4 | ... |     |
+|   | Purpose        |              | Base         | VO2max       | ... |         |
+|   | Session Notes  |              |              | Interval session: ... | ... | |
 ```
 
-### Key Requirements:
-- **Week headers**: Must contain "Week" and a date range (e.g., "Week 1 22 Dec - 28 Dec")
-- **Activity row**: Label in column B must be "Activity"
-- **Days**: Columns C through I represent Monday through Sunday
-- **Rest days**: Enter "Rest" or leave blank
+### Key Requirements
 
-### Supported Workout Formats:
+- **Week headers**: must contain "Week" and a date range (e.g., "Week 1 22 Dec - 28 Dec")
+- **Activity row**: label in column B must be "Activity"
+- **Days**: columns C through I represent Monday through Sunday
+- **Rest days**: enter "Rest" or leave blank
+
+### Supported Workout Formats
 
 | Format | Example |
 |--------|---------|
@@ -125,20 +152,21 @@ Your training plan should follow this structure:
 - Make sure you saved the script in Apps Script
 - Try closing and reopening the spreadsheet
 
-### "Please configure your settings first" error
-- Click Training Plan → Settings and enter your credentials
+### "Athletes tab not found" error
+- Click Training Plan > Create Athletes Tab
 
-### "Authorization required" popup
-- Follow the authorization steps in Step 3 above
-- You may need to click "Advanced" → "Go to ... (unsafe)"
+### Plan tab not found for an athlete
+- Check that the "Plan Tab" column in the Athletes tab exactly matches the sheet tab name (case-sensitive)
 
-### Upload fails with error
-- Check your Athlete ID and API Key are correct
-- Make sure you have an active intervals.icu account
-- Try uploading a smaller batch (single week) first
+### Upload fails with HTTP 403
+- Verify the athlete has shared their intervals.icu account with your coach account
+- Check your API key is correct in Settings
+
+### "Please configure your API key first"
+- Click Training Plan > Settings and enter your coach API key
 
 ### Events not appearing correctly
-- Check your spreadsheet follows the expected format
+- Use **Preview Athlete Plan...** to check what the script sees
 - Make sure week headers include dates (e.g., "22 Dec - 28 Dec")
 - Verify "Activity" is spelled correctly in column B
 
@@ -146,20 +174,16 @@ Your training plan should follow this structure:
 
 ## Privacy & Security
 
-- Your API key is stored securely in your Google account's user properties
-- The script only has access to the current spreadsheet
+- Your API key is stored in your Google account's user properties (not visible to athletes)
+- The script only accesses the current spreadsheet
 - No data is sent anywhere except to intervals.icu
+- Athletes' API keys are never needed — the coach key handles everything
 - You can revoke the script's access anytime in your Google Account settings
 
 ---
 
 ## Need Help?
 
-If you encounter issues:
-1. Use **Training Plan → Preview Events** to check what the script sees
-2. Verify your spreadsheet format matches the examples above
-3. Check the intervals.icu API documentation for any changes
-
----
-
-Happy Training! 🏃‍♂️
+1. Use **Training Plan > Preview Athlete Plan...** to debug
+2. Check the Athletes tab for missing or incorrect data
+3. Verify your spreadsheet format matches the examples above
