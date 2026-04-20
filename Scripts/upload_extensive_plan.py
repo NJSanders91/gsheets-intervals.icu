@@ -366,7 +366,7 @@ def parse_training_plan(rows):
             # Look ahead for purposes and session notes (they come after activity row)
             purposes = []
             local_session_notes = []
-            for j in range(i + 1, min(i + 8, len(rows))):
+            for j in range(i + 1, min(i + 10, len(rows))):
                 if len(rows[j]) > 1:
                     next_label = rows[j][1].strip().lower()
                     if next_label == "purpose":
@@ -454,7 +454,7 @@ def sync_athlete(config, athlete_name, athlete_id, sheet_name, week_filter, dry_
         events = [e for e in events if e.get("week_number") == week_filter]
 
     for event in events:
-        event["external_id"] = generate_external_id(athlete_id, event["start_date_local"], event["name"])
+        event["external_id"] = generate_external_id(athlete_id, event["start_date_local"], event["name"], event.get("type", "Run"))
         event.pop("week_number", None)
 
     print(f"\n{'─' * 60}")

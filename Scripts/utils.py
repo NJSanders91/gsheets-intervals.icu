@@ -125,11 +125,12 @@ def upload_events(events, athlete_id, api_key, upsert=False):
     return response.status_code == 200, response.text
 
 
-def generate_external_id(athlete_id, date_str, workout_name):
+def generate_external_id(athlete_id, date_str, workout_name, event_type="Run"):
     """Generate a deterministic external_id for upsert support."""
     date = date_str[:10]
     slug = re.sub(r'[^a-z0-9]+', '_', workout_name.lower()).strip('_')
-    return f"{athlete_id}_{date}_{slug}"
+    etype = event_type.lower()
+    return f"{athlete_id}_{date}_{etype}_{slug}"
 
 
 def parse_week_start(text):

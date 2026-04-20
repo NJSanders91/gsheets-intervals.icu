@@ -145,7 +145,7 @@ def sync_athlete(config, athlete_name, athlete_id, sheet_name, week_filter, dry_
         events = [e for e in events if e.get("week_number") == week_filter]
 
     for event in events:
-        event["external_id"] = generate_external_id(athlete_id, event["start_date_local"], event["name"])
+        event["external_id"] = generate_external_id(athlete_id, event["start_date_local"], event["name"], event.get("type", "Run"))
         event.pop("week_number", None)
 
     print(f"\n{'─' * 60}")
